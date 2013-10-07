@@ -105,9 +105,12 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
 
 /* REPLACE THE FOLLOWING WITH SOMETHING REAL. */
 
-stmt_list : print_stmt '\n'!
-    ;
+stmt_list : stmt stmt_list
+          | /* empty */
+          ;
 
+stmt : print_stmt '\n'!
+     ;
 print_stmt : "print"  expression_list 
                       { $$ = $^(PRINTLN, $^(EMPTY), $expression_list); }
     ;
@@ -132,17 +135,17 @@ primary: atom
 /*
  * Primitive operators
 */
-power : primary                     //{ $$ = make_id($*); }
+power : primary                     
       | primary "**" u_expr         { $$ = make_binop($*); }
       ;
 
-u_expr : power                     // { $$ = make_id($*); }
+u_expr : power                     
        | "-" u_expr                 { $$ = make_id($*); }
        | "+" u_expr                 { $$ = make_id($*); }
        | "~" u_expr                 { $$ = make_id($*); }
        ;
 
-m_expr : u_expr                    // { $$ = make_id($*); }
+m_expr : u_expr                    
        | m_expr "*" u_expr          { $$ = make_binop($*); }
        | m_expr "//" u_expr         { $$ = make_binop($*); }
        | m_expr "/" u_expr          { $$ = make_binop($*); }
