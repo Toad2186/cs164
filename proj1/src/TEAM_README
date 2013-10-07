@@ -1,0 +1,51 @@
+Start off writing grammar rules. Hilfinger likes comments. Make sure you have comments.
+
+// TODOs:
+1.
+Add tokens for non-builtin operators. See "token ID" in apyc.hn, and Table 1 in the project handout. These are for the AST nodes. Should be done in apyc.hn:
+COMPARE
+LEFT_COMPARE,
+STRING_LITERAL
+IF_EXPR (Python's ternary operator. a = 3 if True else 4)
+TUPLE
+LIST_DISPLAY
+DICT_DISPLAY
+ASSIGN
+ATTRIBUTEREF (Supports attribute accessors: object.attribute)
+SUBSCRIPTION (Supports indexing: a[i])
+PRINT
+CALL
+INT_LITERAL
+RETURN
+BREAK
+CONTINUE
+IF
+WHILE
+FOR
+DEF
+CLASS
+NATIVE
+BLOCK (Signifies an indent. Closing signifies a dedent.)
+TYPE_ID
+TYPE_VAR
+FUNCTION_TYPE
+FORMALS_LIST
+TYPE_FORMALS_LIST
+PAIR
+SLICING
+TARGET_LIST
+
+2.
+Add make_node functions for each of those operators. See make_unop, make_binop, and make_id in apyc.hn.
+
+3.
+Find out where the lexemes are and what the other .cc files do.
+
+Things of interest:
+Print to file
+http://stackoverflow.com/questions/9316023/python-print-to-file
+
+Print operator with trailing comma:
+http://stackoverflow.com/questions/4009672/python-trailing-comma-after-print-executes-next-instruction
+
+
