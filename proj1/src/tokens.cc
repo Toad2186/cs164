@@ -37,6 +37,15 @@ AST_Token::append_text(const string& s)
     throw logic_error ("unimplemented operation: append_text");
 }
 
+/** Represents an id. */
+class Id_Token : public AST_Token {
+private:
+    void print (ostream& out, int indent) {
+        out << "(id " << lineNumber() << " " << as_string() << ")";
+    }
+
+    TOKEN_CONSTRUCTORS(Id_Token, AST_Token);
+};
 
 /** Represents an integer literal. */
 class Int_Token : public AST_Token {
@@ -62,9 +71,6 @@ private:
 
 };
 
-TOKEN_FACTORY(Int_Token, INT_LITERAL);
-
-    
 /** Represents a string. */
 class String_Token : public AST_Token {
 private:
@@ -154,11 +160,20 @@ private:
     string literal_text;
 };
 
-TOKEN_FACTORY(String_Token, STRING);
-
 /** A dummy token whose creation registers String_Token as the class
  *  to use for RAWSTRING tokens produced by the lexer.  (The
  *  TOKEN_FACTORY macro above registers String_Token as the class for
  *  non-raw the STRING tokens as well.)
  *  */ 
 const String_Token String_Token::raw_factory (RAWSTRING);
+
+
+/*
+ * Token Factories
+*/
+TOKEN_FACTORY(String_Token, STRING);
+TOKEN_FACTORY(Id_Token, ID);
+TOKEN_FACTORY(Int_Token, INT_LITERAL);
+
+    
+

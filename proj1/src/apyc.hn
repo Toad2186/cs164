@@ -35,6 +35,8 @@
    *  TOKEN. */
   static AST_Ptr make_id (AST_Ptr& token);
 
+  static AST_Ptr make_id (const List_Ptr& operands);
+
 %}
 
 %debug
@@ -96,6 +98,8 @@
 
 %%
 
+/**************** GRAMMAR RULES ********************/
+
 program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
         ;
 
@@ -108,18 +112,52 @@ print_stmt : "print"  expression_list
                       { $$ = $^(PRINTLN, $^(EMPTY), $expression_list); }
     ;
 
-expression_list :
-      expression (","! expression)*
-                      { $$ = $^(EXPR_LIST, $*); }
-    | /*empty*/       { $$ = $^(EXPR_LIST); }
-    ;
+expression_list : expression
+                | expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
+                | /* empty */                   { $$ = $^(EXPR_LIST); }
+                ;
 
-expression :
-      INT_LITERAL 
-    ;
+expression : a_expr
+           ;
+
+/*
+ * Basic units
+*/
+atom : INT_LITERAL
+     ;
+
+primary: atom                       
+       ;
+
+/*
+ * Primitive operators
+*/
+power : primary                     //{ $$ = make_id($*); }
+      | primary "**" u_expr         { $$ = make_binop($*); }
+      ;
+
+u_expr : power                     // { $$ = make_id($*); }
+       | "-" u_expr                 { $$ = make_id($*); }
+       | "+" u_expr                 { $$ = make_id($*); }
+       | "~" u_expr                 { $$ = make_id($*); }
+       ;
+
+m_expr : u_expr                    // { $$ = make_id($*); }
+       | m_expr "*" u_expr          { $$ = make_binop($*); }
+       | m_expr "//" u_expr         { $$ = make_binop($*); }
+       | m_expr "/" u_expr          { $$ = make_binop($*); }
+       | m_expr "%" u_expr          { $$ = make_binop($*); }
+       ;
+
+a_expr : m_expr                 
+       | a_expr "+" m_expr          { $$ = make_binop($*); }
+       | a_expr "-" m_expr          { $$ = make_binop($*); }
+       ;
 
 /* Normally, throw away whitespace other than newline. */
 * : (' ' | '\t' | '\r')+ ;
+
+/**************** LEXICAL RULES *******************/
 
 _DIGIT : '0' .. '9';
 _DIG_NO_ZERO : '1' .. '9';
@@ -144,6 +182,10 @@ make_binop (const List_Ptr& operands)
 {
     return YYMAKE_TREE (BINOP, operands->at (0), make_id (operands->at (1)),
                         operands->at (2));
+}
+
+static AST_Ptr make_id (const List_Ptr& operands) {
+    return make_id(operands->at(0));
 }
 
 static AST_Ptr
