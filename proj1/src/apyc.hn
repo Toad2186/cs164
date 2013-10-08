@@ -40,6 +40,15 @@
   */
   static AST_Ptr make_id (const List_Ptr& operands);
 
+    /*
+     * Makes a general binop from OPERANDS and OP. OP will be the operator.
+    */
+    static AST_Ptr make_general_binop(const List_Ptr& operands, int op); 
+
+    /*
+     * Makes a general node, ignoring the first operand.
+    */
+    static AST_Ptr make_general(const List_Ptr& operands, int op);
 %}
 
 %debug
@@ -97,9 +106,119 @@
 %token BINOP "@binop"
 %token UNOP "@unop"
 %token INT_LITERAL "@int_literal"
-/* FIXME: MORE... */
+%token DICT_DISPLAY "@dict_display"
+%token COMPARE "@compare"
+%token LEFT_COMPARE "@left_compare"
+%token ISNOT "@isnot"
+
+%token STRING
+%token STRING_LITERAL
+
+/* Keywords */
+%token AND "and"
+%token BREAK "break"
+%token CLASS "class"
+%token CONTINUE "continue"
+%token DEF "def"
+%token ELIF "elif"
+%token ELSE "else"
+%token FOR "for"
+%token FROM "from"
+%token IF "if"
+%token IN "in"
+%token IS "is"
+%token NOT "not"
+%token OR "or"
+%token PASS "pass"
+%token PRINT "print"
+%token RETURN "return"
+%token WHILE "while"
 
 %%
+
+/************** LEXICAL RULES ********************/
+/*
+ * All Caps for clarity
+ * No unicode, long ints, imaginary, float, or unallowed keywords
+ */
+
+/* Normally, throw away whitespace other than newline. */
+* : (' ' | '\t' | '\r')+ ;
+
+/*
+ * Predefined: _ANY, _UPPER, _LOWER, _CONTROL, _EOL, _BOL
+ */
+
+_BLANK : ' ' | '\t' ;
+
+_DIGIT : '0' .. '9' ;
+_NONZERODIGIT : '1' .. '9' ;
+_HEXDIGIT : _DIGIT | 'a' .. 'f' | 'A' .. 'F' ;
+_OCTDIGIT : '0' .. '7' ;
+
+_DECIMALINTEGER : _NONZERODIGIT _DIGIT* | "0" ;
+_OCTINTEGER : "0" _OCTDIGIT+ ;
+_HEXINTEGER: "0" ( "x" | "X" ) _HEXDIGIT+ ;
+_INTEGER : _DECIMALINTEGER | _OCTINTEGER | _HEXINTEGER ;
+_EXPONENT : ( "e" | "E" ) ( "+" | "-")? _DIGIT+ ;
+
+_LOWER : 'a' .. 'z' ;
+_UPPER : 'A' .. 'Z' ;
+_LETTER : _UPPER | _LOWER ;
+
+_RAWSTRINGPREFIX : 'r' | 'R' ;
+_RAWESCAPESEQ : '\\' _ANY ;
+_ESCAPESEQ : _RAWESCAPESEQ | ( '\\' _OCTDIGIT _OCTDIGIT? _OCTDIGIT? ) ;
+
+/* Careful. Horn rules can only do set subtraction on its own lexical rule */
+_NO_SINGLEQUOTE : _ANY - ('\'' | '\n') ;
+_NO_DOUBLEQUOTE : _ANY - ('"' | '\n') ;
+_NO_SLASH : _ANY - ('\\' | '\n') ;
+
+_SHORTSTRINGITEM1 : _NO_SINGLEQUOTE | _ESCAPESEQ ;
+_SHORTSTRINGITEM2 : _NO_DOUBLEQUOTE | _ESCAPESEQ ;
+_LONGSTRINGITEM : _NO_SLASH | _ESCAPESEQ ;
+
+_RAWSHORTSTRINGITEM1 : _NO_SINGLEQUOTE | _RAWESCAPESEQ ;
+_RAWSHORTSTRINGITEM2 : _NO_DOUBLEQUOTE | _RAWESCAPESEQ ;
+_RAWLONGSTRINGITEM : _NO_SLASH | _RAWESCAPESEQ ;
+
+_SHORTSTRING : '\'' _SHORTSTRINGITEM1* '\''
+    | '"' _SHORTSTRINGITEM2* '"'
+    ;
+_RAWSHORTSTRING : '\'' _RAWSHORTSTRINGITEM1* '\''
+    | '"' _RAWSHORTSTRINGITEM2* '"'
+    ;
+
+/* TODO: Fix this */
+_LONGSTRING : "Long string" ;
+_RAWLONGSTRING : "Raw long string" ;
+
+_STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
+    | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
+    ;
+
+RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
+
+/* TODO: fix */
+/* Unsupported Keywords. Error */
+/* *: ( "as" | "assert" | "del" | "except" | "exec" | "finally" | "future" | "global"
+ *   | "import" | "lambda" | "raise" | "try" | "with" | "yield" ) ;
+ */
+
+/* _NO_NEWLINE : _ANY - '\n' ; 
+ * _COMMENT : '#' _NO_NEWLINE* ;
+ * BLANK_LINE : _BLANK* _EOL
+ *   | _BLANK* _COMMENT
+ *   ;
+ */
+
+/* TODO: Need to exclude keywords. Note sure how to do this */
+_ID : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )* ;
+
+/* RULES FOR AST */
+INT_LITERAL : _INTEGER ;
+STRING : _SHORTSTRING | _LONGSTRING ;
 
 /**************** GRAMMAR RULES ********************/
 
@@ -133,8 +252,7 @@ expression_list : expression
                 | /* empty */                   { $$ = $^(EXPR_LIST); }
                 ;
 
-expression : comparison_expr
-           ;
+expression : conditional_expr           ;
 
 /*
  * Basic units
@@ -184,7 +302,8 @@ a_expr : m_expr
  * Comparisons
 */
 comparison_expr : a_expr
-                | a_expr comp_operator comparison_expr       { $$ = make_binop($*); }
+                | a_expr comp_operator a_expr                   { $$ = make_general_binop($*, COMPARE); }
+                | a_expr comp_operator comparison_expr          { $$ = make_general_binop($*, LEFT_COMPARE); }
                 ;
 
 comp_operator : "<"
@@ -194,39 +313,55 @@ comp_operator : "<"
               | "<="
               | "!="
               | "is"
-              | "is not"
+              | "is not"                
               | "in"
               | "not in"
               ;
 
+/*
+ * Boolean operators
+*/
+conditional_expr : or_test
+                 | "if" or_test "else" expression
+                 ;
+
+or_test : and_test
+        | or_test "or" and_test
+        ;
+and_test : not_test
+         | and_test "and" not_test
+         ;
+not_test : comparison_expr
+         | "not" not_test
+         ;
+
+
+
+
 /* Normally, throw away whitespace other than newline. */
 * : (' ' | '\t' | '\r')+ ;
-
-/**************** LEXICAL RULES *******************/
-
-_DIGIT : '0' .. '9';
-_DIG_NO_ZERO : '1' .. '9';
-INT_LITERAL : (_DIG_NO_ZERO)? (_DIGIT)+ /* FIXME */ ;
-
-STRING : "\"\"" /* FIXME */ ;
-
-RAWSTRING : "r\"\"" /* FIXME */ ;
 
 %%
 
 bool debugParser;
 
+static AST_Ptr make_general_binop(const List_Ptr& operands, int op) {
+    return YYMAKE_TREE(op, 
+                       operands->at(0), 
+                       make_id(operands->at(1)),
+                       operands->at(2));
+}
+
 static AST_Ptr
 make_unop (const List_Ptr& operands)
 {
-    return YYMAKE_TREE (UNOP, make_id (operands->at (0)), operands->at (1));
+    make_general(operands, UNOP);
 }
 
 static AST_Ptr
 make_binop (const List_Ptr& operands)
 {
-    return YYMAKE_TREE (BINOP, operands->at (0), make_id (operands->at (1)),
-                        operands->at (2));
+    return make_general_binop(operands, BINOP);
 }
 
 static AST_Ptr make_id (const List_Ptr& operands) {
@@ -240,6 +375,10 @@ make_id (AST_Ptr& token)
                                       token->as_chars (), false);
     result->set_loc (token->loc ());
     return result;
+}
+
+static AST_Ptr make_general(const List_Ptr& operands, int op) {
+    return YYMAKE_TREE(op, make_id(operands->at(0)), operands->at(1));
 }
 
 int

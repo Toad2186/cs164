@@ -1,1 +1,1 @@
-print 11
+print 1, 2, 3
