@@ -35,6 +35,9 @@
    *  TOKEN. */
   static AST_Ptr make_id (AST_Ptr& token);
 
+  /*
+   * Makes an id from the first operand in OPERANDS.
+  */
   static AST_Ptr make_id (const List_Ptr& operands);
 
 %}
@@ -100,40 +103,61 @@
 
 /**************** GRAMMAR RULES ********************/
 
+/*
+ * Start program
+*/
 program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
         ;
 
 /* REPLACE THE FOLLOWING WITH SOMETHING REAL. */
 
+/*
+ * Main statements and expressions
+*/
 stmt_list : stmt stmt_list
           | /* empty */
           ;
 
-stmt : print_stmt '\n'!
+stmt : simple_stmt
      ;
+
 print_stmt : "print"  expression_list 
                       { $$ = $^(PRINTLN, $^(EMPTY), $expression_list); }
     ;
+
+simple_stmt : print_stmt '\n'!
+            ;
 
 expression_list : expression
                 | expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
                 | /* empty */                   { $$ = $^(EXPR_LIST); }
                 ;
 
-expression : a_expr
+expression : comparison_expr
            ;
 
 /*
  * Basic units
 */
 atom : INT_LITERAL
+     | literal
      ;
 
-primary: atom                       
-       ;
+primary : atom                       
+        ;
+
+literal : STRING
+        | RAWSTRING
+        ;
 
 /*
- * Primitive operators
+stringliteral : stringliteralpiece
+              | stringliteral stringliteralpiece
+              ;
+*/
+
+/*
+ * Primitive operators + - * ** / //
 */
 power : primary                     
       | primary "**" u_expr         { $$ = make_binop($*); }
@@ -142,7 +166,6 @@ power : primary
 u_expr : power                     
        | "-" u_expr                 { $$ = make_id($*); }
        | "+" u_expr                 { $$ = make_id($*); }
-       | "~" u_expr                 { $$ = make_id($*); }
        ;
 
 m_expr : u_expr                    
@@ -156,6 +179,25 @@ a_expr : m_expr
        | a_expr "+" m_expr          { $$ = make_binop($*); }
        | a_expr "-" m_expr          { $$ = make_binop($*); }
        ;
+
+/*
+ * Comparisons
+*/
+comparison_expr : a_expr
+                | a_expr comp_operator comparison_expr       { $$ = make_binop($*); }
+                ;
+
+comp_operator : "<"
+              | ">"
+              | "=="
+              | ">="
+              | "<="
+              | "!="
+              | "is"
+              | "is not"
+              | "in"
+              | "not in"
+              ;
 
 /* Normally, throw away whitespace other than newline. */
 * : (' ' | '\t' | '\r')+ ;
