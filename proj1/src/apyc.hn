@@ -201,8 +201,6 @@ _STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
     | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
     ;
 
-RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
-
 /* TODO: fix */
 /* Unsupported Keywords. Error */
 /* *: ( "as" | "assert" | "del" | "except" | "exec" | "finally" | "future" | "global"
@@ -222,6 +220,7 @@ _ID : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )* ;
 /* RULES FOR AST */
 INT_LITERAL : _INTEGER ;
 STRING : _SHORTSTRING | _LONGSTRING ;
+RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
 
 /**************** GRAMMAR RULES ********************/
 
@@ -230,8 +229,6 @@ STRING : _SHORTSTRING | _LONGSTRING ;
 */
 program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
         ;
-
-/* REPLACE THE FOLLOWING WITH SOMETHING REAL. */
 
 /*
  * Main statements and expressions
@@ -247,7 +244,7 @@ print_stmt : "print"  expression_list
                       { $$ = $^(PRINTLN, $^(EMPTY), $expression_list); }
     ;
 
-simple_stmt : print_stmt '\n'!
+simple_stmt : print_stmt
             ;
 
 expression_list : expression
@@ -255,13 +252,14 @@ expression_list : expression
                 | /* empty */                   { $$ = $^(EXPR_LIST); }
                 ;
 
-expression : conditional_expr           ;
+expression : a_expr 
+           ;
 
 /*
  * Basic units
 */
 atom : INT_LITERAL
-     | literal
+//     | literal
      ;
 
 primary : atom                       
@@ -270,12 +268,6 @@ primary : atom
 literal : STRING
         | RAWSTRING
         ;
-
-/*
-stringliteral : stringliteralpiece
-              | stringliteral stringliteralpiece
-              ;
-*/
 
 /*
  * Primitive operators + - * ** / //
@@ -304,42 +296,45 @@ a_expr : m_expr
 /*
  * Comparisons
 */
-comparison_expr : a_expr
-                | a_expr comp_operator a_expr                   { $$ = make_general_binop($*, COMPARE); }
-                | a_expr comp_operator comparison_expr          { $$ = make_general_binop($*, LEFT_COMPARE); }
-                ;
-
-comp_operator : "<"
-              | ">"
-              | "=="
-              | ">="
-              | "<="
-              | "!="
-              | "is"
-              | "is not"              { $$ = make_id($*); } 
-              | "in"
-              | "not in"              { $$ = make_id($*); }
-              ;
+//comparison_expr : a_expr
+//                | a_expr comp_operator comparison_expr          { $$ = make_general_binop($*, LEFT_COMPARE); }
+//                ;
+//
+//comp_operator : "<"
+//              | ">"
+//              | "=="
+//              | ">="
+//              | "<="
+//              | "!="
+//              | "is"
+//              | "is not"              { $$ = make_id($*); } 
+//              | "in"
+//              | "not in"              { $$ = make_id($*); }
+//              ;
 
 /*
  * Boolean operators
 */
-conditional_expr : or_test
-                 | "if" or_test "else" expression
-                 ;
+//conditional_expr : or_test
+//                 | "if" or_test "else" expression
+//                 ;
+//
+//or_test : and_test
+//        | or_test "or" and_test
+//        ;
+//and_test : not_test
+//         | and_test "and" not_test
+//         ;
+//not_test : comparison_expr
+//         | "not" not_test
+//         ;
 
-or_test : and_test
-        | or_test "or" and_test
-        ;
-and_test : not_test
-         | and_test "and" not_test
-         ;
-not_test : comparison_expr
-         | "not" not_test
-         ;
 
-
-
+//-----------------------------------------------------------------------------
+//  Statements
+//-----------------------------------------------------------------------------
+//expression_stmt : expression_list
+//                ;
 
 /* Normally, throw away whitespace other than newline. */
 * : (' ' | '\t' | '\r')+ ;
