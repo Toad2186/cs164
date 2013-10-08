@@ -249,6 +249,7 @@ print_stmt : "print"  expression_list
     ;
 
 simple_stmt : print_stmt '\n'!
+            | expression_stmt '\n'!
             ;
 
 expression_list : expression
@@ -310,9 +311,9 @@ a_expr : m_expr
        ;
 
 /*
- * Comparisons
+ * Comparisons. Need to differentiate between compare and left_compare
 */
-comparison_expr : a_expr
+comparison_expr : a_expr comp_operator a_expr                   { $$ = make_general_binop($*, COMPARE); }
                 | a_expr comp_operator comparison_expr          { $$ = make_general_binop($*, LEFT_COMPARE); }
                 ;
 
@@ -323,6 +324,7 @@ comp_operator : "<"
               | "<="
               | "!="
               | "is"
+// TODO: Not pass in a constant isnot and notin. 
               | L="is not"              { $$ = make_id("isnot", $L.loc()); } 
               | "in"
               | L="not in"              { $$ = make_id("notin", $L.loc()); }
@@ -342,6 +344,7 @@ and_test : not_test
          | and_test "and" not_test
          ;
 not_test : comparison_expr
+         | a_expr
          | "not" not_test
          ;
 
@@ -349,8 +352,8 @@ not_test : comparison_expr
 //-----------------------------------------------------------------------------
 //  Statements
 //-----------------------------------------------------------------------------
-//expression_stmt : expression_list
-//                ;
+expression_stmt : expression_list
+                ;
 
 /* Normally, throw away whitespace other than newline. */
 * : (' ' | '\t' | '\r')+ ;
