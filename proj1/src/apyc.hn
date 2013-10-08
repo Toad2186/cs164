@@ -32,6 +32,11 @@
    *  second operand). */
   static AST_Ptr make_binop (const List_Ptr& operands);
 
+    /*
+     * Makes an id token from text
+    */
+    static AST_Ptr make_id (const char *text, const char*loc);
+
   /** Return a new ID node, where the text of the identifier is given by
    *  TOKEN. */
   static AST_Ptr make_id (AST_Ptr& token);
@@ -197,10 +202,6 @@ _RAWSHORTSTRING : '\'' _RAWSHORTSTRINGITEM1* '\''
 _LONGSTRING : "Long string" ;
 _RAWLONGSTRING : "Raw long string" ;
 
-_STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
-    | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
-    ;
-
 /* TODO: fix */
 /* Unsupported Keywords. Error */
 /* *: ( "as" | "assert" | "del" | "except" | "exec" | "finally" | "future" | "global"
@@ -219,6 +220,9 @@ _ID : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )* ;
 
 /* RULES FOR AST */
 INT_LITERAL : _INTEGER ;
+STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
+    | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
+    ;
 STRING : _SHORTSTRING | _LONGSTRING ;
 RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
 
@@ -244,7 +248,7 @@ print_stmt : "print"  expression_list
                       { $$ = $^(PRINTLN, $^(EMPTY), $expression_list); }
     ;
 
-simple_stmt : print_stmt
+simple_stmt : print_stmt '\n'!
             ;
 
 expression_list : expression
@@ -252,22 +256,34 @@ expression_list : expression
                 | /* empty */                   { $$ = $^(EXPR_LIST); }
                 ;
 
-expression : a_expr 
+expression : conditional_expr 
            ;
 
 /*
  * Basic units
 */
-atom : INT_LITERAL
-//     | literal
+atom : ID
+     | literal
      ;
+
+//-----------------------------------------------------------------------------
+//  TODO: enclosure 
+//-----------------------------------------------------------------------------
 
 primary : atom                       
         ;
 
-literal : STRING
-        | RAWSTRING
+literal : stringliteral
+        | INT_LITERAL 
         ;
+
+stringliteral : STRINGLITERALPIECE
+              | stringliteral STRINGLITERALPIECE
+              ;
+
+//-----------------------------------------------------------------------------
+//  TODO: parenth_form, list_display, list_comprehension, etc.
+//-----------------------------------------------------------------------------
 
 /*
  * Primitive operators + - * ** / //
@@ -296,38 +312,38 @@ a_expr : m_expr
 /*
  * Comparisons
 */
-//comparison_expr : a_expr
-//                | a_expr comp_operator comparison_expr          { $$ = make_general_binop($*, LEFT_COMPARE); }
-//                ;
-//
-//comp_operator : "<"
-//              | ">"
-//              | "=="
-//              | ">="
-//              | "<="
-//              | "!="
-//              | "is"
-//              | "is not"              { $$ = make_id($*); } 
-//              | "in"
-//              | "not in"              { $$ = make_id($*); }
-//              ;
+comparison_expr : a_expr
+                | a_expr comp_operator comparison_expr          { $$ = make_general_binop($*, LEFT_COMPARE); }
+                ;
+
+comp_operator : "<"
+              | ">"
+              | "=="
+              | ">="
+              | "<="
+              | "!="
+              | "is"
+              | L="is not"              { $$ = make_id("isnot", $L.loc()); } 
+              | "in"
+              | L="not in"              { $$ = make_id("notin", $L.loc()); }
+              ;
 
 /*
  * Boolean operators
 */
-//conditional_expr : or_test
-//                 | "if" or_test "else" expression
-//                 ;
-//
-//or_test : and_test
-//        | or_test "or" and_test
-//        ;
-//and_test : not_test
-//         | and_test "and" not_test
-//         ;
-//not_test : comparison_expr
-//         | "not" not_test
-//         ;
+conditional_expr : or_test
+                 | "if" or_test "else" expression
+                 ;
+
+or_test : and_test
+        | or_test "or" and_test
+        ;
+and_test : not_test
+         | and_test "and" not_test
+         ;
+not_test : comparison_expr
+         | "not" not_test
+         ;
 
 
 //-----------------------------------------------------------------------------
@@ -366,17 +382,17 @@ static AST_Ptr make_id (const List_Ptr& operands) {
     return make_id(operands->at(0));
 }
 
+static AST_Ptr make_id (const char *text, const char *loc) {
+    AST_Ptr result = AST::make_token(ID, strlen(text), text, false);
+    result->set_loc(loc);
+    return result;
+}
+
 static AST_Ptr
 make_id (AST_Ptr& token)
 {
-    std::string val = token->as_string();
-    val.erase(std::remove(val.begin(),
-                          val.end(),
-                          ' '),
-              val.end());
-
-    AST_Ptr result = AST::make_token (ID, val.size(), 
-                                      val.c_str(), false);
+    AST_Ptr result = AST::make_token (ID, token->text_size(), 
+                                      token->as_chars(), false);
     result->set_loc (token->loc ());
     return result;
 }
