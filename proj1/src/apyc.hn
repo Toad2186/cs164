@@ -12,6 +12,7 @@
 
 %{
   #include <string>
+  #include <algorithm>
   #include "apyc.h"
   #include "ast.h"
 
@@ -49,6 +50,7 @@
      * Makes a general node, ignoring the first operand.
     */
     static AST_Ptr make_general(const List_Ptr& operands, int op);
+
 %}
 
 %debug
@@ -110,6 +112,7 @@
 %token COMPARE "@compare"
 %token LEFT_COMPARE "@left_compare"
 %token ISNOT "@isnot"
+%token NOTIN "@notin"
 
 %token STRING
 %token STRING_LITERAL
@@ -313,9 +316,9 @@ comp_operator : "<"
               | "<="
               | "!="
               | "is"
-              | "is not"                
+              | "is not"              { $$ = make_id($*); } 
               | "in"
-              | "not in"
+              | "not in"              { $$ = make_id($*); }
               ;
 
 /*
@@ -355,7 +358,7 @@ static AST_Ptr make_general_binop(const List_Ptr& operands, int op) {
 static AST_Ptr
 make_unop (const List_Ptr& operands)
 {
-    make_general(operands, UNOP);
+    return YYMAKE_TREE(UNOP, make_id(operands->at(0)), operands->at(1));
 }
 
 static AST_Ptr
@@ -371,14 +374,20 @@ static AST_Ptr make_id (const List_Ptr& operands) {
 static AST_Ptr
 make_id (AST_Ptr& token)
 {
-    AST_Ptr result = AST::make_token (ID, token->text_size (), 
-                                      token->as_chars (), false);
+    std::string val = token->as_string();
+    val.erase(std::remove(val.begin(),
+                          val.end(),
+                          ' '),
+              val.end());
+
+    AST_Ptr result = AST::make_token (ID, val.size(), 
+                                      val.c_str(), false);
     result->set_loc (token->loc ());
     return result;
 }
 
 static AST_Ptr make_general(const List_Ptr& operands, int op) {
-    return YYMAKE_TREE(op, make_id(operands->at(0)), operands->at(1));
+    return YYMAKE_TREE(op, operands->at(0), operands->at(1));
 }
 
 int
