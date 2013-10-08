@@ -171,7 +171,7 @@ const String_Token String_Token::raw_factory (RAWSTRING);
 /*
  * Token Factories
 */
-TOKEN_FACTORY(String_Token, STRING);
+TOKEN_FACTORY(String_Token, STRING_LITERAL);
 TOKEN_FACTORY(Id_Token, ID);
 TOKEN_FACTORY(Int_Token, INT_LITERAL);
 

@@ -198,9 +198,13 @@ _RAWSHORTSTRING : '\'' _RAWSHORTSTRINGITEM1* '\''
     | '"' _RAWSHORTSTRINGITEM2* '"'
     ;
 
-/* TODO: Fix this */
-_LONGSTRING : "Long string" ;
-_RAWLONGSTRING : "Raw long string" ;
+/* TODO: Helper function find 'shortest sequence of longitems' */
+_LONGSTRING : "'''" ( _LONGSTRINGITEM* ("'" | "''")? )* "'''"
+    | "\"\"\"" ( _LONGSTRINGITEM* ("\"" | "\"\"")? )* "\"\"\""
+    ;
+_RAWLONGSTRING : "'''" ( _RAWLONGSTRINGITEM* ("'" | "''")? )* "'''"
+    | "\"\"\"" ( _RAWLONGSTRINGITEM* ("\"" | "\"\"")? )* "\"\"\""
+    ;
 
 /* TODO: fix */
 /* Unsupported Keywords. Error */
@@ -215,15 +219,16 @@ _RAWLONGSTRING : "Raw long string" ;
  *   ;
  */
 
-/* TODO: Need to exclude keywords. Note sure how to do this */
-_ID : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )* ;
+/* TODO: Need to exclude keywords. */
+IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )* ;
 
 /* RULES FOR AST */
 INT_LITERAL : _INTEGER ;
-STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
+_STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
     | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
     ;
-STRING : _SHORTSTRING | _LONGSTRING ;
+STRING_LITERAL : _STRINGLITERALPIECE+ ;
+
 RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
 
 /**************** GRAMMAR RULES ********************/
@@ -263,7 +268,7 @@ expression : conditional_expr
 /*
  * Basic units
 */
-atom : ID
+atom : IDENTIFIER
      | literal
      ;
 
@@ -274,13 +279,10 @@ atom : ID
 primary : atom                       
         ;
 
-literal : stringliteral
-        | INT_LITERAL 
+literal : STRING_LITERAL
+        | INT_LITERAL
         ;
 
-stringliteral : STRINGLITERALPIECE
-              | stringliteral STRINGLITERALPIECE
-              ;
 
 //-----------------------------------------------------------------------------
 //  TODO: parenth_form, list_display, list_comprehension, etc.
@@ -422,3 +424,12 @@ parse (FILE* f, const string& name)
         theTree->print (cout, 0);
     }
 }
+
+/* -------------- HELPER FUNCTIONS ------------- */
+/*
+static void
+check_identifier (const char* text)
+{
+  if ((text == "and") || (text == "break"))
+}
+*/
