@@ -84,7 +84,7 @@ static AST_Ptr make_id (const char *text, const char*loc);
  * Makes an if_expr node.
  * Expects a list of three operands: condition, expr1, expr2
 */
-static AST_Ptr make_if_expr(AST_Ptr &condition, AST_Ptr &expr1, AST_Ptr &expr2);
+static AST_Ptr make_if_expr(const List_Ptr &operands);
 
 /*
  * Makes an assignment
@@ -421,11 +421,8 @@ comp_operator : "<"
  * Boolean operators
 */
 conditional_expr : or_test
-                 | cond=or_test "if" expr1=or_test "else" expr2=expression 
-                    { $$ = make_if_expr($cond,
-                                        $expr1,
-                                        $expr2);
-                    }
+                 | or_test "if"! or_test "else"! expression 
+                        { $$ = make_if_expr($*); }
                  ;
 
 or_test : and_test
@@ -613,7 +610,7 @@ static AST_Ptr make_id (const char *text, const char *loc) {
     return result;
 }
 
-static AST_Ptr make_if_expr(AST_Ptr &condition, AST_Ptr &expr1, AST_Ptr &expr2) {
+static AST_Ptr make_if_expr(const List_Ptr &operands) {
     return YYMAKE_TREE(IF_EXPR, operands->at(0),
                        operands->at(1), operands->at(2));
 
