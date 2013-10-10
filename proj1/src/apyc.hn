@@ -13,6 +13,7 @@
 %{
   #include <string>
   #include <algorithm>
+  #include <stack>
   #include "apyc.h"
   #include "ast.h"
 
@@ -91,6 +92,19 @@ static AST_Ptr make_if_expr(const List_Ptr &operands);
 */
 static AST_Ptr make_assign(const List_Ptr &operands);
 
+//-----------------------------------------------------------------------------
+// HELPER FUNCTIONS 
+//-----------------------------------------------------------------------------
+static string invalid_keywords[14] = {"as", "assert", "del", "except", "exec", "finally", "future", "global", "import", "lambda", "raise", "try", "with", "yield"};
+static string keywords[18] = {"and", "break", "class", "continue", "def", "elif", "else", "for", "from", "if", "in", "is", "not", "or", "pass", "print", "return", "while"};
+
+static stack<int> indent_stack;
+static int current_indent_length = 0;
+static void check_identifier(const char *text);
+static int indent_size(const char *indent);
+
+static int indent(const char *indent);
+
 %}
 
 %debug
@@ -157,6 +171,9 @@ static AST_Ptr make_assign(const List_Ptr &operands);
 %token STRING
 %token STRING_LITERAL
 
+%token INDENT
+%token DEDENT
+
 /* Keywords */
 %token AND "and"
 %token BREAK "break"
@@ -185,18 +202,9 @@ static AST_Ptr make_assign(const List_Ptr &operands);
  * No unicode, long ints, imaginary, float, or unallowed keywords
  */
 
-/* Normally, throw away whitespace other than newline. */
-* : (' ' | '\t' | '\r')+ ;
-
 /*
  * Predefined: _ANY, _UPPER, _LOWER, _CONTROL, _EOL, _BOL
  */
-
-// TEMPORARY
-INDENT : "indent"
-       ;
-DEDENT : "dedent"
-       ;
 
 _BLANK : ' ' | '\t' ;
 
@@ -247,27 +255,35 @@ _RAWLONGSTRING : "'''" ( _RAWLONGSTRINGITEM* ("'" | "''")? )* "'''"
     | "\"\"\"" ( _RAWLONGSTRINGITEM* ("\"" | "\"\"")? )* "\"\"\""
     ;
 
+_STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
+    | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
+    ;
+
 /* TODO: fix */
 /* Unsupported Keywords. Error */
 /* *: ( "as" | "assert" | "del" | "except" | "exec" | "finally" | "future" | "global"
  *   | "import" | "lambda" | "raise" | "try" | "with" | "yield" ) ;
  */
 
-/* _NO_NEWLINE : _ANY - '\n' ; 
- * _COMMENT : '#' _NO_NEWLINE* ;
- * BLANK_LINE : _BLANK* _EOL
- *   | _BLANK* _COMMENT
- *   ;
- */
+_NO_NEWLINE : _ANY - '\n' ;
+_COMMENT : '#' _NO_NEWLINE* ;
 
-/* TODO: Need to exclude keywords. */
-IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )* ;
+/* HANDLE INDENTATION */
+* : _BOL _BLANK+ %prefer
+    {
+      YYSET_TOKEN(indent($TEXT));
+    }
+    ;
+
+/* Exclude keywords. */
+IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
+    {
+      check_identifier($TEXT);
+    }
+    ;
 
 /* RULES FOR AST */
 INT_LITERAL : _INTEGER ;
-_STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
-    | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
-    ;
 STRING_LITERAL : _STRINGLITERALPIECE+ ;
 
 RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
@@ -640,10 +656,89 @@ parse (FILE* f, const string& name)
 }
 
 /* -------------- HELPER FUNCTIONS ------------- */
-/*
 static void
 check_identifier (const char* text)
 {
-  if ((text == "and") || (text == "break"))
+  for (int i = 0; i < 14; i++ )
+  {
+    if ( invalid_keywords[i].compare(text) == 0 ) {
+      error(yysource_location(), "Identifier is illegall keyword");
+    }
+  }
+  for (int i = 0; i < 18; i++ )
+  {
+    if ( keywords[i].compare(text) == 0 ) {
+      error(yysource_location(), "Identifier is a keyword");
+    }
+  }
 }
-*/
+
+static int
+indent_size (const char* indent)
+{
+  int size = 0;
+  for (int i = 0; indent[i] != '\0'; i++)
+  {
+    if (indent[i] == ' ')
+    {
+      size += 1;
+    }
+    else if (indent[i] == '\t')
+    {
+      size += 8 - (size % 8);
+    }
+    else
+    {
+      error(yysource_location(), "Indentation error");
+    }
+  }
+  return size;
+}
+
+static int
+indent (const char* indent)
+{
+  int indent_length = indent_size(indent);
+  if (indent_length > current_indent_length)
+  {
+    indent_stack.push(indent_length - current_indent_length);
+    current_indent_length = indent_length;
+    return INDENT;
+  }
+  else if (indent_length < current_indent_length)
+  {
+    if (!indent_stack.empty())
+    {
+      current_indent_length -= indent_stack.top();
+      indent_stack.pop();
+    }
+    else
+    {
+      error(yysource_location(), "Indentation error");
+    }
+    while (indent_length < current_indent_length)
+    {
+      yyqueue_token(DEDENT, 0, 0, "", 8);
+      if (!indent_stack.empty())
+      {
+        current_indent_length -= indent_stack.top();
+        indent_stack.pop();
+      }
+      else
+      {
+        error(yysource_location(), "Indentation error");
+      }
+    }
+    
+    if (current_indent_length == indent_length)
+      error(yysource_location(), "Indentation error");
+    else
+      return DEDENT;
+  }
+  else
+  {
+    return -1;
+  }
+  error(yysource_location(), "Indentation error");
+  return 0;
+}
