@@ -206,6 +206,12 @@ static int indent(const char *indent);
  * Predefined: _ANY, _UPPER, _LOWER, _CONTROL, _EOL, _BOL
  */
 
+// TEMPORARY
+INDENT : "indent"
+       ;
+DEDENT : "dedent"
+       ;
+
 _BLANK : ' ' | '\t' ;
 
 _DIGIT : '0' .. '9' ;
@@ -349,7 +355,6 @@ attributeref : primary "." identifier
 
 subscription : primary "[" expression_list "]"
              ;
-
 
 //-----------------------------------------------------------------------------
 //  Lists
