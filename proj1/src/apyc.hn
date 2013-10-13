@@ -36,6 +36,10 @@
 /* Utilities */
 //-----------------------------------------------------------------------------
 //  Generalizable make functions
+//  NOTE: Most of these were defined before we realized that we can
+//        easily handle them with horn syntax.
+//        If we have time, we can go back and remove most of these,
+//        and replace with inline horn syntax.
 //-----------------------------------------------------------------------------
 
 /*
@@ -100,6 +104,49 @@ static AST_Ptr make_id (const char *text, const char*loc);
 static AST_Ptr make_if_expr(const List_Ptr &operands);
 
 /*
+ * Makes an and node.
+ * Expects a list of two operands: expr1 and expr2
+*/
+static AST_Ptr make_and(const List_Ptr &operands);
+
+/*
+ * Makes an or node.
+ * Expects a list of two operands: expr1 and expr2
+*/
+static AST_Ptr make_or(const List_Ptr &operands);
+
+/*
+ * Makes a not node.
+ * Expects a list of one operand: expr1
+*/
+static AST_Ptr make_not(const List_Ptr &operands);
+
+/*
+ * Tuples are taken care of with horn syntax. No
+ * function defined.
+*/
+
+/*
+ * Dicts are taken care of with horn syntax. No
+ * function defined.
+*/
+
+/*
+ * Lists are taken care of with horn syntax. No
+ * function defined.
+*/
+
+/*
+ * TODO: See the "literal" rule
+ * String literals
+*/
+
+/*
+ * TODO: Function calls
+ * Not sure how these work
+*/
+
+/*
  * Makes an assignment
 */
 static AST_Ptr make_assign(const List_Ptr &operands);
@@ -118,6 +165,16 @@ static int indent_size(const char *indent);
 static int indent(const char *indent);
 
 %}
+
+/* Precedence and associativity rules */
+%left "or"
+%left "and"
+%left "not"
+%left "<" ">" "==" ">=" "<=" "!=" "is" "in"
+%left "+" "-"
+%left "%" "*" "/" "//"
+%left UNOP
+%right "**"
 
 %debug
 %glr-parser
@@ -176,13 +233,21 @@ static int indent(const char *indent);
 %token UNOP "@unop"
 %token INT_LITERAL "@int_literal"
 %token DICT_DISPLAY "@dict_display"
+%token LIST_DISPLAY "@list_display"
+%token PAIR "@pair"
 %token COMPARE "@compare"
 %token LEFT_COMPARE "@left_compare"
 %token ASSIGN "@assign"
 %token IF_EXPR "@if_expr"
+%token TUPLE "@tuple"
+%token DIVDIV "//"
+%token POW "**"
+%token ATTRIBUTEREF "@attributeref"
+%token SUBSCRIPTION "@subscription"
+%token SLICING "@slicing"
 
 %token STRING
-%token STRING_LITERAL
+%token STRING_LITERAL   "@string_literal"
 
 %token INDENT
 %token DEDENT
@@ -220,6 +285,8 @@ static int indent(const char *indent);
  */
 
 _BLANK : ' ' | '\t' ;
+_NEWLINE : '\n' ;
+NEWLINE : _NEWLINE ;
 
 _DIGIT : '0' .. '9' ;
 _NONZERODIGIT : '1' .. '9' ;
@@ -241,7 +308,7 @@ _RAWESCAPESEQ : '\\' _ANY ;
 _ESCAPESEQ : _RAWESCAPESEQ | ( '\\' _OCTDIGIT _OCTDIGIT? _OCTDIGIT? ) ;
 
 /* Careful. Horn rules can only do set subtraction on its own lexical rule */
-_NO_SINGLEQUOTE : _ANY - ('\'' | '\n') ;
+_NO_SINGLEQUOTE : _ANY - ('\'' | '\n' ) ;
 _NO_DOUBLEQUOTE : _ANY - ('"' | '\n') ;
 _NO_SLASH : _ANY - ('\\' | '\n') ;
 
@@ -268,8 +335,10 @@ _RAWLONGSTRING : "'''" ( _RAWLONGSTRINGITEM* ("'" | "''")? )* "'''"
     | "\"\"\"" ( _RAWLONGSTRINGITEM* ("\"" | "\"\"")? )* "\"\"\""
     ;
 
+_RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
+RAWSTRING : _RAWSTRING ;
 _STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
-    | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
+    | _RAWSTRING
     ;
 
 /* TODO: fix */
@@ -283,6 +352,10 @@ _COMMENT : '#' _NO_NEWLINE* ;
 
 /* HANDLE INDENTATION */
 * : (' ' | '\t' | '\r')+ ;
+* : '\\' _NEWLINE ;
+* : _BOL _BLANK* _NEWLINE %prefer
+    | _BOL _BLANK* _COMMENT _NEWLINE %prefer
+    ;
 * : _BOL _BLANK+ %prefer
     {
       YYSET_TOKEN(indent($TEXT));
@@ -300,7 +373,6 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
 INT_LITERAL : _INTEGER ;
 STRING_LITERAL : _STRINGLITERALPIECE+ ;
 
-RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
 
 
 /**************** GRAMMAR RULES ********************/
@@ -309,17 +381,18 @@ RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
  * Start program
 */
 program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
+        | /* empty */ { theTree = $^(MODULE); $$ = NULL; }
         ;
 
 /*
  * Main statements and expressions
+ * TODO: Figure out why we can't use NEWLINE instead of '\n'
 */
-stmt_list : stmt ";"! stmt_list ";"!?
-          | stmt "\n"! stmt_list 
-          | /* empty */
+stmt_list : stmt ('\n'! stmt)* '\n'!
           ;
 
-expression_list : expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
+expression_list : expression (","! expression)+ { $$ = $^(EXPR_LIST, $*); }
+                | expression ","!?              { $$ = $^(EXPR_LIST, $*); } 
                 ;
 
 expression : conditional_expr 
@@ -330,13 +403,15 @@ enclosure : parenth_form
           | dict_display
           ;
 
-parenth_form : "(" expression_list ")"
+parenth_form : "("! expression ")"!          
+             | "("! expression (","! expression)+ ","!? ")"! 
+                    { $$ = $^(TUPLE, $*); }
              ;
 
 /*
  * Basic units
 */
-identifier : IDENTIFIER
+identifier : IDENTIFIER     { $$ = make_id($*); }
            ;
 atom : identifier
      | literal
@@ -346,36 +421,42 @@ atom : identifier
 primary : atom                       
         | attributeref
         | subscription
+        | slicing
         ;
 
+// TODO: String literal node
 literal : STRING_LITERAL
         | INT_LITERAL
         ;
 
-
-attributeref : primary "." identifier
-             ;
-
-subscription : primary "[" expression_list "]"
-             ;
-
 //-----------------------------------------------------------------------------
 //  Lists
 //-----------------------------------------------------------------------------
-list_display : "[" expression_list "]"
+list_display : "["! expression (","! expression)* ","!? "]"!
+                    { $$ = $^(LIST_DISPLAY, $*); }
+             | "["! "]"!
+                    { $$ = $^(LIST_DISPLAY); }
              ;
 //-----------------------------------------------------------------------------
 //  Dictionaries
 //-----------------------------------------------------------------------------
-dict_display : "{" key_datum_list "}"
-             | "{" "}"
+dict_display : "{"! key_datum_list "}"!             
+                    { $$ = $^(DICT_DISPLAY, $*); }
+             | "{"! "}"! 
+                    { $$ = $^(DICT_DISPLAY); }
              ;
 
-key_datum_list : key_datum (","! key_datum)+ ","!?
+key_datum_list : key_datum (","! key_datum)* ","!?
                ;
 
-key_datum : expression ":" expression
+key_datum : expression ":"! expression       { $$ = $^(PAIR, $*); }
           ;
+
+attributeref : primary "."! identifier       { $$ = $^(ATTRIBUTEREF, $*); }
+             ;
+
+subscription : primary "["! expression_list "]"! { $$ = $^(SUBSCRIPTION, $*); }
+             ;
 
 //-----------------------------------------------------------------------------
 //  Slicing
@@ -383,14 +464,15 @@ key_datum : expression ":" expression
 slicing : simple_slicing
         ;
 
-simple_slicing : primary "[" short_slice "]"
+simple_slicing : primary "["! short_slice "]"!  
+                    { $$ = $^(SLICING, $*); }
                ;
 
-short_slice : lower_bound ":" upper_bound
+short_slice : lower_bound ":"! upper_bound  
             ;
 
 lower_bound : expression
-            | /* empty */
+            | /* empty */      { $$ = $^(EMPTY); } 
             ;
 
 upper_bound : lower_bound
@@ -448,22 +530,22 @@ conditional_expr : or_test
                         { $$ = make_if_expr($*); }
                  ;
 
-or_test : and_test
-        | or_test "or" and_test
+or_test : and_test          
+        | or_test "or"! and_test         { $$ = make_or($*); }
         ;
 and_test : not_test
-         | and_test "and" not_test
+         | and_test "and"! not_test      { $$ = make_and($*); }
          ;
 not_test : comparison_expr
          | a_expr
-         | "not" not_test
+         | "not" not_test               { $$ = make_not($*); }
          ;
 
 
 //-----------------------------------------------------------------------------
 //  Statements
 //-----------------------------------------------------------------------------
-stmt : simple_stmt
+stmt : simple_stmt (";"! simple_stmt)* ";"!?
      | compound_stmt
      ;
 
@@ -489,6 +571,7 @@ assignment_stmt : target_list "="! expression_list { $$ = make_assign($*); }
 
 target_list : "("! main_target_list ")"!
             | "["! main_target_list "]"!
+            | main_target_list
             ;
 
 // Needed to resolve some conflicts with target lists
@@ -528,7 +611,8 @@ compound_stmt : if_stmt
               | classdef
               ;
 
-if_stmt : "if" expression ":" suite elseif_stmt 
+if_stmt : "if" expression ":" suite "\n"
+        | "if" expression ":" suite elseif_stmt
         ;
 
 elseif_stmt : else_stmt
@@ -536,7 +620,6 @@ elseif_stmt : else_stmt
             ;
 
 else_stmt : "else" expression ":" suite
-          | /* empty */
           ;
 
 while_stmt : "while" expression ":" suite else_stmt
@@ -545,12 +628,12 @@ while_stmt : "while" expression ":" suite else_stmt
 for_stmt : "for" target_list "in" expression_list ":" suite else_stmt
          ;
 
-suite : stmt_list '\n'!
-      | '\n'! INDENT statement DEDENT
+suite : stmt_list
+      | NEWLINE! INDENT statement DEDENT
       ;
 
-statement : stmt_list '\n'!
-          | stmt_list '\n'! statement
+statement : stmt_list NEWLINE!
+          | stmt_list NEWLINE! statement
           | compound_stmt
           ;
 
@@ -568,13 +651,12 @@ parameter_list : /* empty */
                | identifier parameter_list
                ;
 
+// TODO: Should not end with a suite. Define classsuite.
 classdef : "class" classname ":"! suite
          ;
 
 classname : identifier
           ;
-
-
 
 %%
 
@@ -639,7 +721,18 @@ static AST_Ptr make_id (const char *text, const char *loc) {
 static AST_Ptr make_if_expr(const List_Ptr &operands) {
     return YYMAKE_TREE(IF_EXPR, operands->at(0),
                        operands->at(1), operands->at(2));
+}
 
+static AST_Ptr make_and(const List_Ptr &operands) {
+    return make_expr_expr(operands, AND);
+}
+
+static AST_Ptr make_or(const List_Ptr &operands) {
+    return make_expr_expr(operands, OR);
+}
+
+static AST_Ptr make_not(const List_Ptr &operands) {
+    return make_unop(operands);
 }
 
 static AST_Ptr make_assign(const List_Ptr &operands) {
