@@ -363,13 +363,6 @@ literal : STRING_LITERAL
         | INT_LITERAL
         ;
 
-
-attributeref : primary "." identifier
-             ;
-
-subscription : primary "[" expression_list "]"
-             ;
-
 //-----------------------------------------------------------------------------
 //  Lists
 //-----------------------------------------------------------------------------
@@ -393,7 +386,6 @@ attributeref : primary "." identifier
 
 subscription : primary "[" expression_list "]"
              ;
-
 
 //-----------------------------------------------------------------------------
 //  Slicing
