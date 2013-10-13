@@ -282,8 +282,10 @@ _RAWLONGSTRING : "'''" ( _RAWLONGSTRINGITEM* ("'" | "''")? )* "'''"
     | "\"\"\"" ( _RAWLONGSTRINGITEM* ("\"" | "\"\"")? )* "\"\"\""
     ;
 
+_RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
+RAWSTRING : _RAWSTRING ;
 _STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
-    | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
+    | _RAWSTRING
     ;
 
 /* TODO: fix */
@@ -297,6 +299,7 @@ _COMMENT : '#' _NO_NEWLINE* ;
 
 /* HANDLE INDENTATION */
 * : (' ' | '\t' | '\r')+ ;
+* : '\\' _NEWLINE ;
 * : _BOL _BLANK* _NEWLINE %prefer
     | _BOL _BLANK* _COMMENT _NEWLINE %prefer
     ;
@@ -317,7 +320,6 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
 INT_LITERAL : _INTEGER ;
 STRING_LITERAL : _STRINGLITERALPIECE+ ;
 
-RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
 
 
 /**************** GRAMMAR RULES ********************/
@@ -332,7 +334,7 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
 /*
  * Main statements and expressions
 */
-stmt_list : stmt ('\n'! stmt)+
+stmt_list : stmt (NEWLINE! stmt)+
           ;
 
 expression_list : expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
