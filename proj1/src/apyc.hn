@@ -8,6 +8,18 @@
  * Dennis Rong
 */
 
+/*
+ * LIST OF CONFLICTS
+ * A list of conflicts encountered that we solved using GLR. The compiler will
+ * still complain, but these conflicts should be ignored. Other conflicts
+ * should be added to this list if solved with GLR. Otherwise fix it
+ * so the compiler doesn't complain anymore!
+ * -4x conflicts in target
+
+
+*/
+
+
 %define semantic_tree_type "AST"
 
 %{
@@ -108,6 +120,7 @@ static int indent(const char *indent);
 %}
 
 %debug
+%glr-parser
 %define error_function error
 
 /* A token declaration such as
@@ -269,6 +282,7 @@ _NO_NEWLINE : _ANY - '\n' ;
 _COMMENT : '#' _NO_NEWLINE* ;
 
 /* HANDLE INDENTATION */
+* : (' ' | '\t' | '\r')+ ;
 * : _BOL _BLANK+ %prefer
     {
       YYSET_TOKEN(indent($TEXT));
@@ -300,13 +314,12 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
 /*
  * Main statements and expressions
 */
-stmt_list : stmt stmt_list
+stmt_list : stmt ";"! stmt_list ";"!?
+          | stmt "\n"! stmt_list 
           | /* empty */
           ;
 
-expression_list : expression
-                | expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
-                | /* empty */                   { $$ = $^(EXPR_LIST); }
+expression_list : expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
                 ;
 
 expression : conditional_expr 
@@ -315,11 +328,7 @@ expression : conditional_expr
 enclosure : parenth_form
           | list_display
           | dict_display
-          | string_conversion
           ;
-
-string_conversion : '`' expression_list '`'
-                  ;
 
 parenth_form : "(" expression_list ")"
              ;
@@ -362,8 +371,7 @@ dict_display : "{" key_datum_list "}"
              | "{" "}"
              ;
 
-key_datum_list : key_datum
-               | key_datum "," key_datum_list ","?
+key_datum_list : key_datum (","! key_datum)+ ","!?
                ;
 
 key_datum : expression ":" expression
@@ -462,7 +470,7 @@ not_test : comparison_expr
 //-----------------------------------------------------------------------------
 //  Statements
 //-----------------------------------------------------------------------------
-stmt : simple_stmt '\n'!
+stmt : simple_stmt
      | compound_stmt
      ;
 
@@ -486,16 +494,19 @@ expression_stmt : expression_list
 assignment_stmt : target_list "="! expression_list { $$ = make_assign($*); } 
                 ;
 
-// No nested targets as in S8 of proj1 handout
-target_list : target
+target_list : "("! main_target_list ")"!
+            | "["! main_target_list "]"!
             ;
 
-target : identifier 
-       | "(" target_list ")"
-       | "[" target_list "]"
-       | attributeref
-       | subscription
-       | slicing
+// Needed to resolve some conflicts with target lists
+// Is this still needed?
+main_target_list : target (","! target)* ","!? 
+                 ;
+
+target : identifier                 /* RR conflict with atom. Resolve with GLR. */
+       | attributeref               /* RR conflict with primary. Resolve with GLR. */
+       | subscription               /* RR conflict with primary. Resolve with GLR. */
+       | slicing                    /* RR conflict with primary. Resolve with GLR. */
        ;
 
 pass_stmt : "pass"
