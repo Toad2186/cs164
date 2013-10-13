@@ -562,7 +562,7 @@ while_stmt : "while" expression ":" suite else_stmt
 for_stmt : "for" target_list "in" expression_list ":" suite else_stmt
          ;
 
-suite : stmt_list NEWLINE!
+suite : stmt_list
       | NEWLINE! INDENT statement DEDENT
       ;
 
