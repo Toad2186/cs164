@@ -1,0 +1,99 @@
+TODO:
+Test different class definitions (see hbradlow tests)
+
+Test nested if statements, loops in if statements, elif nested, if, else and elif together.
+
+Test that overloading works correctly.
+
+Expand on each of the keywords:
+	and
+	break
+	class
+	continue
+	def (make sure to do a check for different versions: on two lines and on one line with no indentation)
+	elif
+	else
+	for
+	if
+	in
+	is (identity comparison vs the ==, which is equality)
+	not
+	or
+	pass
+	print
+	return
+	while
+	not in
+
+
+Typing (Weird..take a look at the examples we are given in the project spec).
+While Loop
+For Loop
+Recursion
+If statements
+nested if statements
+if elif, else
+Accesing array indexes.
+Accesing dictionry indexes.
+Addition, subtraction, multiplication, division, etc.
+tuples n sht.
+do we do native functions correctly?
+class decoration (class Foo: with default parent)
+Check for overloading allowed (Pg 3, 2.2 additional features) - call disambiguated by number and types of parameters.
+multiple assignment for tuples
+
+Error Checking:
+Check to make sure you can't put class declarations nested inside other constructs.
+Check to make sure function declarations may not appear within the statements of an if/while/for
+
+
+Questions:
+Do we need remainder (%)?
+Do we need "unconditionally truncating division" (//)?
+Can we do stuff like: print True if 3 else print False?
+Uhh...do we support sets? a = {'hello', 'goodbye'}
+Did we implement ">>" as an append redirection to a file? (Piazza @123)
+Did we make note of Piazza @122 where: The reference to "ifexpr" should be "if_expr".
+Hilfiger says to "Specifically exclude the keywords that would be used for them." (Piazza @121)
+Do we recognize the string concatenation with "same strings"?
+Do we need the ability to loop by tuple?
+
+
+Lexical Structure
+L1. No Unicode strings (e.g., u"Foo")
+L2. No long integer literals. All integer literals must be in the range [0, 2^30], and a literal equal to 2^30 actually means −2^30.
+L3. No imaginary numbers.
+L4. No floating-point literals.
+L5. The following words may not appear, either as keywords or identiﬁers. The statements or expressions that use them in full Python are not in our dialect:
+		as assert del except exec finally future global import lambda raise try with yield
+
+Expressions
+E1. No list comprehensions (such as [x for x in xrange(0,10)]), or generator expressions (such as (x for x in xrange(0,10))), just expression lists.
+E2. No string conversions (backticks/backquotes).
+E3. TODO: No extended slices.
+E4. No keyword (default args), * (args), or ** (kwargs) arguments. No default parameters.
+E5. We don’t use the obsolescent <> operator (basically means !=, so larger than and less than).
+E6. No lambda expressions.
+E7. No operators:
+		‘|’ - bitwise OR
+		‘&’ - bitwise AND
+		‘^’ - bitwise XOR
+		‘<<’ - bitshift left one
+		‘>>’ - bitshift right one
+		‘~’ - bitwise NOT (equal to two's complement of value minus 1)
+
+Statements
+S1. No import statements
+S2: Only class declarations with a default parent class, as in
+		class Foo:
+			...
+S3. No decorators (@A)
+S4. Class declarations may not be nested inside any other construct.
+S5. Function declarations may not appear within the statements of an if/while/for
+S6. Functiond eclarations may contain only simple identifiers as parameters, so that
+		def foo(x, (y,z)): ...
+	is illegal
+	TODO: What are target lists?? What is this?
+S7. No augmented assignment (e.g, "+=")
+S8. TODO
+S9. No global statement  TODO: What is going on here?
