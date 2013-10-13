@@ -396,7 +396,7 @@ expression_list : expression (","! expression)+ ","! { $$ = $^(EXPR_LIST, $*); }
                 | expression ","!                    { $$ = $^(EXPR_LIST, $*); } 
                 ;
 */
-expression_list : expression_list_no_dangling ","!
+expression_list : expression_list_no_dangling ","!?
                 ;
 
 expression_list_no_dangling : expression (","! expression)*
