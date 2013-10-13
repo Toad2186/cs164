@@ -391,9 +391,17 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
 stmt_list : stmt ('\n'! stmt)* '\n'!
           ;
 
-expression_list : expression (","! expression)+ { $$ = $^(EXPR_LIST, $*); }
-                | expression ","!?              { $$ = $^(EXPR_LIST, $*); } 
+/*
+expression_list : expression (","! expression)+ ","! { $$ = $^(EXPR_LIST, $*); }
+                | expression ","!                    { $$ = $^(EXPR_LIST, $*); } 
                 ;
+*/
+expression_list : expression_list_no_dangling ","!
+                ;
+
+expression_list_no_dangling : expression (","! expression)*
+            { $$ = $^(EXPR_LIST, $*); }
+                            ;
 
 expression : conditional_expr 
            ;
@@ -588,8 +596,10 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
 pass_stmt : "pass"
           ;
 
-print_stmt : "print"  expression_list 
-                      { $$ = $^(PRINTLN, $^(EMPTY), $expression_list); }
+print_stmt : "print" expression_list_no_dangling ","!
+                      { $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling); }
+           | "print" expression_list_no_dangling
+                      { $$ = $^(PRINT, $^(EMPTY), $expression_list_no_dangling); }
            ;
 
 return_stmt : "return" expression_list
