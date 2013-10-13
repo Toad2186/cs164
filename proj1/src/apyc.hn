@@ -858,25 +858,6 @@ format_string (const char* indent)
 static int
 check_integer (const char* text)
 {
-  /*
-  //hex
-  if (text[0] == '0' && (text[1] == 'X' | text[1] == 'x'))
-  {
-
-  }
-
-  //oct
-  else if (text[0] == '0' && strlen(text) > 1)
-  {
-    oct = text+1;
-  }
-
-
-  //int
-  else {
-    int number = atoi(text);
-  }
-  */
   int number = strtol(text,NULL,0);
 
   if (number > 1073741824)
