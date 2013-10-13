@@ -220,6 +220,8 @@ static int indent(const char *indent);
  */
 
 _BLANK : ' ' | '\t' ;
+_NEWLINE : '\n' ;
+NEWLINE : _NEWLINE ;
 
 _DIGIT : '0' .. '9' ;
 _NONZERODIGIT : '1' .. '9' ;
@@ -241,7 +243,7 @@ _RAWESCAPESEQ : '\\' _ANY ;
 _ESCAPESEQ : _RAWESCAPESEQ | ( '\\' _OCTDIGIT _OCTDIGIT? _OCTDIGIT? ) ;
 
 /* Careful. Horn rules can only do set subtraction on its own lexical rule */
-_NO_SINGLEQUOTE : _ANY - ('\'' | '\n') ;
+_NO_SINGLEQUOTE : _ANY - ('\'' | '\n' ) ;
 _NO_DOUBLEQUOTE : _ANY - ('"' | '\n') ;
 _NO_SLASH : _ANY - ('\\' | '\n') ;
 
@@ -283,8 +285,8 @@ _COMMENT : '#' _NO_NEWLINE* ;
 
 /* HANDLE INDENTATION */
 * : (' ' | '\t' | '\r')+ ;
-* : _BOL _BLANK* '\n' %prefer
-    | _BOL _BLANK* _COMMENT '\n' %prefer
+* : _BOL _BLANK* _NEWLINE %prefer
+    | _BOL _BLANK* _COMMENT _NEWLINE %prefer
     ;
 * : _BOL _BLANK+ %prefer
     {
@@ -548,12 +550,12 @@ while_stmt : "while" expression ":" suite else_stmt
 for_stmt : "for" target_list "in" expression_list ":" suite else_stmt
          ;
 
-suite : stmt_list '\n'!
-      | '\n'! INDENT statement DEDENT
+suite : stmt_list NEWLINE!
+      | NEWLINE! INDENT statement DEDENT
       ;
 
-statement : stmt_list '\n'!
-          | stmt_list '\n'! statement
+statement : stmt_list NEWLINE!
+          | stmt_list NEWLINE! statement
           | compound_stmt
           ;
 
