@@ -541,7 +541,8 @@ compound_stmt : if_stmt
               | classdef
               ;
 
-if_stmt : "if" expression ":" suite elseif_stmt 
+if_stmt : "if" expression ":" suite "\n"
+        | "if" expression ":" suite elseif_stmt
         ;
 
 elseif_stmt : else_stmt
@@ -549,7 +550,6 @@ elseif_stmt : else_stmt
             ;
 
 else_stmt : "else" expression ":" suite
-          | /* empty */
           ;
 
 while_stmt : "while" expression ":" suite else_stmt
