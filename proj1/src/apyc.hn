@@ -283,7 +283,7 @@ _COMMENT : '#' _NO_NEWLINE* ;
 
 /* HANDLE INDENTATION */
 * : (' ' | '\t' | '\r')+ ;
-* : _BOL _BLANK* '\n'
+* : _BOL _BLANK* '\n' %prefer
     | _BOL _BLANK* _COMMENT '\n' %prefer
     ;
 * : _BOL _BLANK+ %prefer
