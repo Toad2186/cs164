@@ -106,6 +106,23 @@ static AST_Ptr make_if_expr(const List_Ptr &operands);
 static AST_Ptr make_and(const List_Ptr &operands);
 
 /*
+ * Makes an or node.
+ * Expects a list of two operands: expr1 and expr2
+*/
+static AST_Ptr make_or(const List_Ptr &operands);
+
+/*
+ * Makes a not node.
+ * Expects a list of one operand: expr1
+*/
+static AST_Ptr make_not(const List_Ptr &operands);
+
+/*
+ * Tuples are taken care of with horn syntax. No
+ * function defined.
+*/
+
+/*
  * Makes an assignment
 */
 static AST_Ptr make_assign(const List_Ptr &operands);
@@ -196,6 +213,7 @@ static int indent(const char *indent);
 %token LEFT_COMPARE "@left_compare"
 %token ASSIGN "@assign"
 %token IF_EXPR "@if_expr"
+%token TUPLE "@tuple"
 %token DIVDIV "//"
 %token POW "**"
 
@@ -238,6 +256,8 @@ static int indent(const char *indent);
  */
 
 _BLANK : ' ' | '\t' ;
+_NEWLINE : '\n' ;
+NEWLINE : _NEWLINE ;
 
 _DIGIT : '0' .. '9' ;
 _NONZERODIGIT : '1' .. '9' ;
@@ -259,7 +279,7 @@ _RAWESCAPESEQ : '\\' _ANY ;
 _ESCAPESEQ : _RAWESCAPESEQ | ( '\\' _OCTDIGIT _OCTDIGIT? _OCTDIGIT? ) ;
 
 /* Careful. Horn rules can only do set subtraction on its own lexical rule */
-_NO_SINGLEQUOTE : _ANY - ('\'' | '\n') ;
+_NO_SINGLEQUOTE : _ANY - ('\'' | '\n' ) ;
 _NO_DOUBLEQUOTE : _ANY - ('"' | '\n') ;
 _NO_SLASH : _ANY - ('\\' | '\n') ;
 
@@ -286,8 +306,10 @@ _RAWLONGSTRING : "'''" ( _RAWLONGSTRINGITEM* ("'" | "''")? )* "'''"
     | "\"\"\"" ( _RAWLONGSTRINGITEM* ("\"" | "\"\"")? )* "\"\"\""
     ;
 
+_RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
+RAWSTRING : _RAWSTRING ;
 _STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
-    | _RAWSTRINGPREFIX ( _RAWSHORTSTRING | _RAWLONGSTRING )
+    | _RAWSTRING
     ;
 
 /* TODO: fix */
@@ -301,8 +323,9 @@ _COMMENT : '#' _NO_NEWLINE* ;
 
 /* HANDLE INDENTATION */
 * : (' ' | '\t' | '\r')+ ;
-* : _BOL _BLANK* '\n' %prefer
-    | _BOL _BLANK* _COMMENT '\n' %prefer
+* : '\\' _NEWLINE ;
+* : _BOL _BLANK* _NEWLINE %prefer
+    | _BOL _BLANK* _COMMENT _NEWLINE %prefer
     ;
 * : _BOL _BLANK+ %prefer
     {
@@ -321,7 +344,6 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
 INT_LITERAL : _INTEGER ;
 STRING_LITERAL : _STRINGLITERALPIECE+ ;
 
-RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
 
 
 /**************** GRAMMAR RULES ********************/
@@ -335,11 +357,13 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
 
 /*
  * Main statements and expressions
+ * TODO: Figure out why we can't use NEWLINE instead of '\n'
 */
-stmt_list : stmt ('\n'! stmt)* '\n'
+stmt_list : stmt ('\n'! stmt)* '\n'!
           ;
 
-expression_list : expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
+expression_list : expression (","! expression)+ { $$ = $^(EXPR_LIST, $*); }
+                | expression ","!? 
                 ;
 
 expression : conditional_expr 
@@ -350,7 +374,8 @@ enclosure : parenth_form
           | dict_display
           ;
 
-parenth_form : "(" expression_list ")"
+parenth_form : "("! expression ")"!          
+             | "("! expression (","! expression)+ ","!? ")"! { $$ = $^(TUPLE, $*); }
              ;
 
 /*
@@ -475,7 +500,7 @@ and_test : not_test
          ;
 not_test : comparison_expr
          | a_expr
-         | "not"! not_test
+         | "not" not_test               { $$ = make_not($*); }
          ;
 
 
@@ -565,12 +590,12 @@ while_stmt : "while" expression ":" suite else_stmt
 for_stmt : "for" target_list "in" expression_list ":" suite else_stmt
          ;
 
-suite : stmt_list 
-      | '\n'! INDENT statement DEDENT
+suite : stmt_list
+      | NEWLINE! INDENT statement DEDENT
       ;
 
-statement : stmt_list '\n'!
-          | stmt_list '\n'! statement
+statement : stmt_list NEWLINE!
+          | stmt_list NEWLINE! statement
           | compound_stmt
           ;
 
@@ -666,6 +691,10 @@ static AST_Ptr make_and(const List_Ptr &operands) {
 
 static AST_Ptr make_or(const List_Ptr &operands) {
     return make_expr_expr(operands, OR);
+}
+
+static AST_Ptr make_not(const List_Ptr &operands) {
+    return make_unop(operands);
 }
 
 static AST_Ptr make_assign(const List_Ptr &operands) {
