@@ -611,7 +611,7 @@ print_stmt : "print" expression_list_no_dangling ","!
            ;
 
 // TODO: Check if return is valid (i.e. in funcdef)
-return_stmt : "return"! parenth_form         { $$ = $^(RETURN, $*); }
+return_stmt : "return"! enclosure            { $$ = $^(RETURN, $*); }
             | "return"! tuple                { $$ = $^(RETURN, $*); }
             | "return"!                      { $$ = $^(RETURN, $^(EMPTY));
                                                $$.set_loc(yysource_location());
@@ -639,6 +639,7 @@ compound_stmt : if_stmt
 if_stmt : "if"! expression ":"! suite  
             { $$ = $^(IF, $*, $^(EMPTY)); }
         | "if"! expression ":"! suite elseif_stmt
+            { $$ = $^(IF, $*); }
         ;
 
 elseif_stmt : "\n"! else_stmt
