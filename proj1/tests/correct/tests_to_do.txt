@@ -50,7 +50,6 @@ Check to make sure function declarations may not appear within the statements of
 Questions:
 Do we need remainder (%)?
 Do we need "unconditionally truncating division" (//)?
-Can we do stuff like: print True if 3 else print False?
 Uhh...do we support sets? a = {'hello', 'goodbye'}
 Did we implement ">>" as an append redirection to a file? (Piazza @123)
 Did we make note of Piazza @122 where: The reference to "ifexpr" should be "if_expr".

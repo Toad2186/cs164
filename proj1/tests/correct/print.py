@@ -12,10 +12,6 @@ print a
 b = {'hello':1, 'world':3}
 print b
 
-print a, b
-print a, b, a
-print b, a, b
-
 # Printing evaluations
 print 1 + 3
 print 3 < 4
@@ -24,4 +20,12 @@ c = 4
 d = "whattheheck"
 print c and d
 
-# TODO: What else can print print? Take a look at python grammar.
+# Printing tuples, empty tuples
+print (1,2)
+print (3,4,5)
+print (9,7,)
+
+# Multiple argument printing (including trailing ',')
+print 1,2
+print 1,2,3
+print 1,2,3,
