@@ -1,5 +1,4 @@
 # Testing a simple class definition with a method.
-
 class hello_world:
     def hi(self):
         pass

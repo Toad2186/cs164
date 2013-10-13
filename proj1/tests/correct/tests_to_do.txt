@@ -1,9 +1,9 @@
 TODO:
 Test different class definitions (see hbradlow tests)
+	class2.py
+
 
 Test nested if statements, loops in if statements, elif nested, if, else and elif together.
-
-Test that overloading works correctly.
 
 Expand on each of the keywords:
 	and
