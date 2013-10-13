@@ -179,6 +179,7 @@ static int indent(const char *indent);
 %token ID
 
 %token PRINTLN "@println"
+%token PRINT "@print"
 %token EMPTY 
 %token EXPR_LIST "@expr_list"
 %token MODULE "@module"
@@ -215,7 +216,6 @@ static int indent(const char *indent);
 %token NOT "not"
 %token OR "or"
 %token PASS "pass"
-%token PRINT "print"
 %token RETURN "return"
 %token WHILE "while"
 
@@ -337,8 +337,13 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
 stmt_list : stmt (NEWLINE! stmt)+
           ;
 
-expression_list : expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
-                ;
+expression_list_proper : expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
+                       ;
+
+expression_list_dangling_comma : (expression ","!)+ { $$ = $^(EXPR_LIST, $*); } 
+                               ;
+
+expression_list : expression_list_proper | expression_list_dangling_comma ;
 
 expression : conditional_expr 
            ;
@@ -522,9 +527,13 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
 pass_stmt : "pass"
           ;
 
-print_stmt : "print"  expression_list 
-                      { $$ = $^(PRINTLN, $^(EMPTY), $expression_list); }
+print_stmt : "print"  expression_list_proper
+                      { $$ = $^(PRINTLN, $^(EMPTY), $expression_list_proper); }
            ;
+print_stmt : "print" expression_list_dangling_comma
+                      { $$ = $^(PRINT, $^(EMPTY), $expression_list_dangling_comma); }
+          ;
+
 
 return_stmt : "return" expression_list
             ;
