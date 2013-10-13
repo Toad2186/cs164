@@ -100,6 +100,12 @@ static AST_Ptr make_id (const char *text, const char*loc);
 static AST_Ptr make_if_expr(const List_Ptr &operands);
 
 /*
+ * Makes an and node.
+ * Expects a list of two operands: expr1 and expr2
+*/
+static AST_Ptr make_and(const List_Ptr &operands);
+
+/*
  * Makes an assignment
 */
 static AST_Ptr make_assign(const List_Ptr &operands);
@@ -330,7 +336,7 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
 /*
  * Main statements and expressions
 */
-stmt_list : stmt ('\n'! stmt)+
+stmt_list : stmt ('\n'! stmt)* '\n'
           ;
 
 expression_list : expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
@@ -461,15 +467,15 @@ conditional_expr : or_test
                         { $$ = make_if_expr($*); }
                  ;
 
-or_test : and_test
-        | or_test "or" and_test
+or_test : and_test          
+        | or_test "or"! and_test         { $$ = make_or($*); }
         ;
 and_test : not_test
-         | and_test "and" not_test
+         | and_test "and"! not_test      { $$ = make_and($*); }
          ;
 not_test : comparison_expr
          | a_expr
-         | "not" not_test
+         | "not"! not_test
          ;
 
 
@@ -502,6 +508,7 @@ assignment_stmt : target_list "="! expression_list { $$ = make_assign($*); }
 
 target_list : "("! main_target_list ")"!
             | "["! main_target_list "]"!
+            | main_target_list
             ;
 
 // Needed to resolve some conflicts with target lists
@@ -651,7 +658,14 @@ static AST_Ptr make_id (const char *text, const char *loc) {
 static AST_Ptr make_if_expr(const List_Ptr &operands) {
     return YYMAKE_TREE(IF_EXPR, operands->at(0),
                        operands->at(1), operands->at(2));
+}
 
+static AST_Ptr make_and(const List_Ptr &operands) {
+    return make_expr_expr(operands, AND);
+}
+
+static AST_Ptr make_or(const List_Ptr &operands) {
+    return make_expr_expr(operands, OR);
 }
 
 static AST_Ptr make_assign(const List_Ptr &operands) {
