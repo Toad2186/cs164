@@ -28,6 +28,7 @@
   #include <stack>
   #include "apyc.h"
   #include "ast.h"
+  #include <stdlib.h>
 
   using namespace std;
 
@@ -154,7 +155,7 @@ static AST_Ptr make_assign(const List_Ptr &operands);
 //-----------------------------------------------------------------------------
 // HELPER FUNCTIONS 
 //-----------------------------------------------------------------------------
-static string invalid_keywords[14] = {"as", "assert", "del", "except", "exec", "finally", "future", "global", "import", "lambda", "raise", "try", "with", "yield"};
+static string invalid_keywords[15] = {"as", "assert", "del", "except", "exec", "finally", "from", "future", "global", "import", "lambda", "raise", "try", "with", "yield"};
 static string keywords[18] = {"and", "break", "class", "continue", "def", "elif", "else", "for", "from", "if", "in", "is", "not", "or", "pass", "print", "return", "while"};
 
 static stack<int> indent_stack;
@@ -370,9 +371,8 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
     ;
 
 /* RULES FOR AST */
-INT_LITERAL : _INTEGER ;
+INT_LITERAL : _INTEGER { check_integer($TEXT);} ;
 STRING_LITERAL : _STRINGLITERALPIECE+ ;
-
 
 
 /**************** GRAMMAR RULES ********************/
@@ -772,7 +772,7 @@ parse (FILE* f, const string& name)
 static void
 check_identifier (const char* text)
 {
-  for (int i = 0; i < 14; i++ )
+  for (int i = 0; i < 15; i++ )
   {
     if ( invalid_keywords[i].compare(text) == 0 ) {
       error(yysource_location(), "Identifier is illegall keyword");
@@ -854,4 +854,28 @@ indent (const char* indent)
   }
   error(yysource_location(), "Indentation error");
   return 0;
+}
+
+/* Format for correct printing in AST*/
+/*
+static char*
+format_string (const char* indent)
+{
+
+}
+*/
+
+static int
+check_integer (const char* text)
+{
+  int number = strtol(text,NULL,0);
+
+  if (number > 1073741824)
+  {
+    error(yysource_location(), "Decimal integer greater than 2^30");
+    return 1;
+  }
+  else {
+    return number;
+  }
 }
