@@ -119,6 +119,16 @@ static int indent(const char *indent);
 
 %}
 
+/* Precedence and associativity rules */
+%left "or"
+%left "and"
+%left "not"
+%left "<" ">" "==" ">=" "<=" "!=" "is" "in"
+%left "+" "-"
+%left "%" "*" "/" "//"
+%left UNOP
+%right "**"
+
 %debug
 %glr-parser
 %define error_function error
@@ -180,6 +190,8 @@ static int indent(const char *indent);
 %token LEFT_COMPARE "@left_compare"
 %token ASSIGN "@assign"
 %token IF_EXPR "@if_expr"
+%token DIVDIV "//"
+%token POW "**"
 
 %token STRING
 %token STRING_LITERAL
@@ -309,14 +321,13 @@ RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
  * Start program
 */
 program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
+        | /* empty */ { theTree = $^(MODULE); $$ = NULL; }
         ;
 
 /*
  * Main statements and expressions
 */
-stmt_list : stmt ";"! stmt_list ";"!?
-          | stmt "\n"! stmt_list 
-          | /* empty */
+stmt_list : stmt ('\n'! stmt)+
           ;
 
 expression_list : expression (","! expression)* { $$ = $^(EXPR_LIST, $*); }
@@ -470,7 +481,7 @@ not_test : comparison_expr
 //-----------------------------------------------------------------------------
 //  Statements
 //-----------------------------------------------------------------------------
-stmt : simple_stmt
+stmt : simple_stmt (";"! simple_stmt)* ";"!?
      | compound_stmt
      ;
 
@@ -552,7 +563,7 @@ while_stmt : "while" expression ":" suite else_stmt
 for_stmt : "for" target_list "in" expression_list ":" suite else_stmt
          ;
 
-suite : stmt_list '\n'!
+suite : stmt_list 
       | '\n'! INDENT statement DEDENT
       ;
 
@@ -575,13 +586,12 @@ parameter_list : /* empty */
                | identifier parameter_list
                ;
 
+// TODO: Should not end with a suite. Define classsuite.
 classdef : "class" classname ":"! suite
          ;
 
 classname : identifier
           ;
-
-
 
 %%
 
