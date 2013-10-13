@@ -36,6 +36,10 @@
 /* Utilities */
 //-----------------------------------------------------------------------------
 //  Generalizable make functions
+//  NOTE: Most of these were defined before we realized that we can
+//        easily handle them with horn syntax.
+//        If we have time, we can go back and remove most of these,
+//        and replace with inline horn syntax.
 //-----------------------------------------------------------------------------
 
 /*
@@ -120,6 +124,26 @@ static AST_Ptr make_not(const List_Ptr &operands);
 /*
  * Tuples are taken care of with horn syntax. No
  * function defined.
+*/
+
+/*
+ * Dicts are taken care of with horn syntax. No
+ * function defined.
+*/
+
+/*
+ * Lists are taken care of with horn syntax. No
+ * function defined.
+*/
+
+/*
+ * TODO: See the "literal" rule
+ * String literals
+*/
+
+/*
+ * TODO: Function calls
+ * Not sure how these work
 */
 
 /*
@@ -209,6 +233,8 @@ static int indent(const char *indent);
 %token UNOP "@unop"
 %token INT_LITERAL "@int_literal"
 %token DICT_DISPLAY "@dict_display"
+%token LIST_DISPLAY "@list_display"
+%token PAIR "@pair"
 %token COMPARE "@compare"
 %token LEFT_COMPARE "@left_compare"
 %token ASSIGN "@assign"
@@ -216,9 +242,12 @@ static int indent(const char *indent);
 %token TUPLE "@tuple"
 %token DIVDIV "//"
 %token POW "**"
+%token ATTRIBUTEREF "@attributeref"
+%token SUBSCRIPTION "@subscription"
+%token SLICING "@slicing"
 
 %token STRING
-%token STRING_LITERAL
+%token STRING_LITERAL   "@string_literal"
 
 %token INDENT
 %token DEDENT
@@ -363,7 +392,7 @@ stmt_list : stmt ('\n'! stmt)* '\n'!
           ;
 
 expression_list : expression (","! expression)+ { $$ = $^(EXPR_LIST, $*); }
-                | expression ","!? 
+                | expression ","!?              { $$ = $^(EXPR_LIST, $*); } 
                 ;
 
 expression : conditional_expr 
@@ -375,13 +404,14 @@ enclosure : parenth_form
           ;
 
 parenth_form : "("! expression ")"!          
-             | "("! expression (","! expression)+ ","!? ")"! { $$ = $^(TUPLE, $*); }
+             | "("! expression (","! expression)+ ","!? ")"! 
+                    { $$ = $^(TUPLE, $*); }
              ;
 
 /*
  * Basic units
 */
-identifier : IDENTIFIER
+identifier : IDENTIFIER     { $$ = make_id($*); }
            ;
 atom : identifier
      | literal
@@ -391,8 +421,10 @@ atom : identifier
 primary : atom                       
         | attributeref
         | subscription
+        | slicing
         ;
 
+// TODO: String literal node
 literal : STRING_LITERAL
         | INT_LITERAL
         ;
@@ -400,25 +432,30 @@ literal : STRING_LITERAL
 //-----------------------------------------------------------------------------
 //  Lists
 //-----------------------------------------------------------------------------
-list_display : "[" expression_list "]"
+list_display : "["! expression (","! expression)* ","!? "]"!
+                    { $$ = $^(LIST_DISPLAY, $*); }
+             | "["! "]"!
+                    { $$ = $^(LIST_DISPLAY); }
              ;
 //-----------------------------------------------------------------------------
 //  Dictionaries
 //-----------------------------------------------------------------------------
-dict_display : "{" key_datum_list "}"
-             | "{" "}"
+dict_display : "{"! key_datum_list "}"!             
+                    { $$ = $^(DICT_DISPLAY, $*); }
+             | "{"! "}"! 
+                    { $$ = $^(DICT_DISPLAY); }
              ;
 
-key_datum_list : key_datum (","! key_datum)+ ","!?
+key_datum_list : key_datum (","! key_datum)* ","!?
                ;
 
-key_datum : expression ":" expression
+key_datum : expression ":"! expression       { $$ = $^(PAIR, $*); }
           ;
 
-attributeref : primary "." identifier
+attributeref : primary "."! identifier       { $$ = $^(ATTRIBUTEREF, $*); }
              ;
 
-subscription : primary "[" expression_list "]"
+subscription : primary "["! expression_list "]"! { $$ = $^(SUBSCRIPTION, $*); }
              ;
 
 //-----------------------------------------------------------------------------
@@ -427,14 +464,15 @@ subscription : primary "[" expression_list "]"
 slicing : simple_slicing
         ;
 
-simple_slicing : primary "[" short_slice "]"
+simple_slicing : primary "["! short_slice "]"!  
+                    { $$ = $^(SLICING, $*); }
                ;
 
-short_slice : lower_bound ":" upper_bound
+short_slice : lower_bound ":"! upper_bound  
             ;
 
 lower_bound : expression
-            | /* empty */
+            | /* empty */      { $$ = $^(EMPTY); } 
             ;
 
 upper_bound : lower_bound
