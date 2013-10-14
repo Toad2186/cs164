@@ -154,6 +154,33 @@ static AST_Ptr make_not(const List_Ptr &operands);
 static AST_Ptr make_assign(const List_Ptr &operands);
 
 //-----------------------------------------------------------------------------
+//  Validation functions
+//-----------------------------------------------------------------------------
+// Keeps track if we're in an if
+static int if_counter;
+// Keeps track if we're in a loop, and if so, how many
+static int loop_counter;
+// Keeps track if we're in a function
+static int func_counter;
+// Are we in a class?
+static bool inside_class;
+/*
+ * Makes sure class is not nested inside a class
+*/
+static void validate_class();
+/*
+ * Makes sure return is inside a function
+*/
+static void validate_return();
+/*
+ * Makes sure break is valid (inside a loop).
+*/
+static void validate_break();
+/*
+ * Makes sure continue is valid (inside a loop).
+*/
+static void validate_continue();
+//-----------------------------------------------------------------------------
 // HELPER FUNCTIONS 
 //-----------------------------------------------------------------------------
 static string invalid_keywords[15] = {"as", "assert", "del", "except", "exec", "finally", "from", "future", "global", "import", "lambda", "raise", "try", "with", "yield"};
@@ -611,19 +638,21 @@ print_stmt : "print" expression_list_no_dangling ","!
            ;
 
 // TODO: Check if return is valid (i.e. in funcdef)
-return_stmt : "return"! enclosure            { $$ = $^(RETURN, $*); }
-            | "return"! tuple                { $$ = $^(RETURN, $*); }
-            | "return"!                      { $$ = $^(RETURN, $^(EMPTY));
+return_stmt : "return"! tuple                { validate_return();
+                                               $$ = $^(RETURN, $*); 
+                                             }
+            | "return"!                      { validate_return();
+                                               $$ = $^(RETURN, $^(EMPTY));
                                                $$.set_loc(yysource_location());
                                              }
             ;
 
 // TODO: Check if break is valid (i.e. in loop)
-break_stmt : "break"^        
+break_stmt : "break"^           { validate_break(); } 
            ;
 
 // TODO: Check if continue is valid (i.e. in loop)
-continue_stmt : "continue"^
+continue_stmt : "continue"^     { validate_continue(); }
               ;
 
 //-----------------------------------------------------------------------------
@@ -636,10 +665,12 @@ compound_stmt : if_stmt
               | classdef
               ;
 
-if_stmt : "if"! expression ":"! suite  
-            { $$ = $^(IF, $*, $^(EMPTY)); }
-        | "if"! expression ":"! suite elseif_stmt
-            { $$ = $^(IF, $*); }
+if_stmt :  "if"! expression ":"! 
+            { ++if_counter; }
+            suite elseif_stmt
+            { --if_counter;
+              $$ = $^(IF, $*); 
+            }
         ;
 
 elseif_stmt : "\n"! else_stmt
@@ -647,20 +678,27 @@ elseif_stmt : "\n"! else_stmt
             ;
 
 else_stmt : "else"! expression ":"! suite
+          | /* empty */
           ;
 
-while_stmt : "while" expression ":" suite else_stmt
+while_stmt : "while" expression ":" 
+             { ++loop_counter; }
+             suite else_stmt
+             { --loop_counter; }
            ;
 
-for_stmt : "for" target_list "in" expression_list ":" suite else_stmt
+for_stmt : "for" target_list "in" expression_list ":" 
+           { ++loop_counter; }
+           suite else_stmt
+           { --loop_counter; }
          ;
 
 // TODO: Change \n to NEWLINE
 suite : simple_stmt (";"! simple_stmt)* ";"!?
-      | "\n"! INDENT statement DEDENT
+      | "\n"! INDENT! statement DEDENT! 
       ;
 
-statement : stmt_list NEWLINE!
+statement : stmt_list 
           | stmt_list NEWLINE! statement
           | compound_stmt
           ;
@@ -669,7 +707,10 @@ statement : stmt_list NEWLINE!
 //  Function and class definitions
 //-----------------------------------------------------------------------------
 
-funcdef : "def" funcname "(" parameter_list ")" ":" suite
+funcdef : "def" funcname "(" parameter_list ")" ":" 
+            { ++func_counter; }
+          funcblock
+            { --func_counter; }
         ;
 
 funcname : identifier
@@ -678,9 +719,14 @@ funcname : identifier
 parameter_list : /* empty */
                | identifier parameter_list
                ;
+funcblock : INDENT! stmt_list DEDENT!       { $$ = $^{BLOCK
+          | 
 
 // TODO: Should not end with a suite. Define classsuite.
-classdef : "class" classname ":"! suite
+classdef : "class" classname ":"!
+            { validate_class(); inside_class = true; }
+            suite
+            { inside_class = false; }
          ;
 
 classname : identifier
@@ -783,6 +829,37 @@ parse (FILE* f, const string& name)
     yyparse ();
     if (theTree != NULL) {
         theTree->print (cout, 0);
+    }
+}
+
+//-----------------------------------------------------------------------------
+//  Validation functions
+//-----------------------------------------------------------------------------
+static void validate_class() {
+    if (inside_class || func_counter > 0 || if_counter > 0) {
+        error(yysource_location(), "Nested class definition not allowed!");
+    }
+}
+
+static void validate_return() {
+    if (func_counter == 0) {
+        error(yysource_location(), 
+              "Return statements must be inside functions!");
+    }
+}
+
+static void validate_break() {
+    if (loop_counter == 0) {
+        error(yysource_location(),
+              "Break statements must be inside loops!");
+
+    }
+}
+
+static void validate_continue() {
+    if (loop_counter == 0) {
+        error(yysource_location(),
+              "Continue statements must be inside loops!");
     }
 }
 
