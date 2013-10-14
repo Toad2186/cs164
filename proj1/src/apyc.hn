@@ -628,12 +628,21 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
 pass_stmt : "pass"
           ;
 
+string_literal : STRING_LITERAL ;
 // TODO: Support >>
-print_stmt : "print" expression_list_no_dangling ","!
-                      { $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling); }
-           | "print" expression_list_no_dangling
-                      { $$ = $^(PRINT, $^(EMPTY), $expression_list_no_dangling); }
-           ;
+print_stmt : "print" (">>" string_literal)? expression_list_no_dangling ","!
+                      { if ($string_literal.missing())
+                          $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling);
+                        else
+                          $$ = $^(PRINTLN, $string_literal, $expression_list_no_dangling);
+                      }
+           | "print" (">>" string_literal)? expression_list_no_dangling
+                      { if ($string_literal.missing())
+                          $$ = $^(PRINT, $^(EMPTY), $expression_list_no_dangling);
+                        else
+                          $$ = $^(PRINT, $string_literal, $expression_list_no_dangling);
+                      }
+          ;
 
 // TODO: Check if return is valid (i.e. in funcdef)
 return_stmt : "return"! tuple                { validate_return();
