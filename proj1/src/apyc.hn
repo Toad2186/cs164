@@ -413,7 +413,7 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
  * Main statements and expressions
  * TODO: Figure out why we can't use NEWLINE instead of '\n'
 */
-stmt_list : stmt ('\n'! stmt)* '\n'!?
+stmt_list : stmt ('\n'! stmt)* '\n'!
           ;
 
 /*
@@ -671,23 +671,28 @@ if_stmt :  "if"! expression ":"!
         ;
 
 elseif_stmt : else_stmt
-            | "\n"! "elif"! expression ":"! suite elseif_stmt
+            | "\n"! "elif"! expression ":"! suite elseif_stmt 
+                    { $$ = $^(IF, $*); }
             ;
 
-else_stmt : "else"! expression ":"! suite
-          | /* empty */
+else_stmt : "else"! ":"! suite
+          | /* empty */         { $$ = $^(STATEMENT_LIST); }
           ;
 
 while_stmt : "while" expression ":" 
              { ++loop_counter; }
              suite else_stmt
-             { --loop_counter; }
+             { --loop_counter;
+               $$ = $^(WHILE, $*);
+             }
            ;
 
 for_stmt : "for" target_list "in" expression_list ":" 
            { ++loop_counter; }
            suite else_stmt
-           { --loop_counter; }
+           { --loop_counter;
+             $$ = $^(WHILE, $*); 
+           }
          ;
 
 // TODO: Change \n to NEWLINE
