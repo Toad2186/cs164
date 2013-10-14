@@ -275,6 +275,11 @@ static int indent(const char *indent);
 %token SUBSCRIPTION "@subscription"
 %token SLICING "@slicing"
 %token STATEMENT_LIST "@stmt_list"
+%token TARGET_LIST "@target_list"
+%token NATIVE "@native"
+%token FUNC_DEF "@def"
+%token BLOCK "@block"
+%token FORMALS_LIST "@formals_list"
 
 %token STRING
 %token STRING_LITERAL   "@string_literal"
@@ -302,6 +307,13 @@ static int indent(const char *indent);
 %token PRINT "print"
 %token RETURN "return"
 %token WHILE "while"
+
+/*
+ * Types
+*/
+%token TYPE "@type"
+%token TYPE_LIST "@type_list"
+%token TYPE_FUNCTION "@function_type"
 
 %%
 
@@ -399,7 +411,6 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
 /* RULES FOR AST */
 INT_LITERAL : _INTEGER ;
 STRING_LITERAL : _STRINGLITERALPIECE+ ;
-
 
 /**************** GRAMMAR RULES ********************/
 
@@ -616,7 +627,7 @@ target_list : "("! main_target_list ")"!
 
 // Needed to resolve some conflicts with target lists
 // Is this still needed?
-main_target_list : target (","! target)* ","!? 
+main_target_list : target (","! target)* ","!? { $$ = $^(TARGET_LIST, $*); }
                  ;
 
 target : identifier                 /* RR conflict with atom. Resolve with GLR. */
@@ -713,19 +724,22 @@ statement : stmt_list
 //  Function and class definitions
 //-----------------------------------------------------------------------------
 
-funcdef : "def" funcname "(" parameter_list ")" ":" 
+funcdef : "def"! funcname "("! parameter_list ")"! ":"! "\n"! 
             { ++func_counter; }
           funcblock
-            { --func_counter; }
+            { --func_counter;
+              $$ = $^(FUNC_DEF, $*); 
+            }
         ;
 
 funcname : identifier
          ;
 
-parameter_list : /* empty */
-               | identifier parameter_list
+parameter_list : /* empty */                { $$ = $^(FORMALS_LIST); }
+               | identifier parameter_list  { $$ = $^(FORMALS_LIST, $*); }
                ;
-funcblock : INDENT! stmt_list DEDENT!       
+funcblock : INDENT! statement DEDENT!       { $$ = $^(BLOCK, $*); } 
+          | "native" STRING_LITERAL         { $$ = $^(NATIVE, $*); } 
           ; 
 
 // TODO: Should not end with a suite. Define classsuite.
@@ -737,6 +751,24 @@ classdef : "class" classname ":"!
 
 classname : identifier
           ;
+
+
+//-----------------------------------------------------------------------------
+//  Types
+//-----------------------------------------------------------------------------
+type_var : "$" identifier { $$ = $^(TYPE_VAR, $*); }
+
+type_list : /* empty */!                   { $$ = $^(TYPE_LIST); }
+          | type ("," type)*               { $$ = $^(TYPE_LIST, $*); }
+          ;
+type_function : "("! type_list ")"! "->"! type
+                    { $$ = $^(TYPE_FUNCTION, $type, $type_list); }
+              ;
+
+type : identifier           { $$ = $^(TYPE, $*, $^(TYPE_LIST)); }
+     | type_var              
+     | type_function          
+     ;
 
 %%
 
@@ -799,8 +831,8 @@ static AST_Ptr make_id (const char *text, const char *loc) {
 }
 
 static AST_Ptr make_if_expr(const List_Ptr &operands) {
-    return YYMAKE_TREE(IF_EXPR, operands->at(0),
-                       operands->at(1), operands->at(2));
+    return YYMAKE_TREE(IF_EXPR, operands->at(1),
+                       operands->at(0), operands->at(2));
 }
 
 static AST_Ptr make_and(const List_Ptr &operands) {
