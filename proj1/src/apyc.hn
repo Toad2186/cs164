@@ -162,12 +162,14 @@ static int if_counter;
 static int loop_counter;
 // Keeps track if we're in a function
 static int func_counter;
-// Are we in a class?
-static bool inside_class;
 /*
- * Makes sure class is not nested inside a class
+ * Makes sure class is not nested inside anything
 */
 static void validate_class();
+/*
+ * Make sure function is not defined in a loop or if statement
+*/
+static void validate_function();
 /*
  * Makes sure return is inside a function
 */
@@ -180,6 +182,7 @@ static void validate_break();
  * Makes sure continue is valid (inside a loop).
 */
 static void validate_continue();
+
 //-----------------------------------------------------------------------------
 // HELPER FUNCTIONS 
 //-----------------------------------------------------------------------------
@@ -282,6 +285,7 @@ static int indent(const char *indent);
 %token INDENT
 %token DEDENT
 %token NEWLINE
+
 
 /* Keywords */
 %token AND "and"
@@ -625,8 +629,7 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
        | slicing                    /* RR conflict with primary. Resolve with GLR. */
        ;
 
-pass_stmt : "pass"
-          ;
+pass_stmt : "pass"      { $$ = $^(EMPTY);} ;
 
 string_literal : STRING_LITERAL ;
 print_stmt : "print" (">>" string_literal)? expression_list_no_dangling ","!
@@ -717,7 +720,7 @@ statement : stmt_list
 //-----------------------------------------------------------------------------
 
 funcdef : "def" funcname "(" parameter_list ")" ":" 
-            { ++func_counter; }
+            { validate_function(); ++func_counter; }
           funcblock
             { --func_counter; }
         ;
@@ -733,9 +736,8 @@ funcblock : INDENT! stmt_list DEDENT!
 
 // TODO: Should not end with a suite. Define classsuite.
 classdef : "class" classname ":"!
-            { validate_class(); inside_class = true; }
+            { validate_class(); }
             suite
-            { inside_class = false; }
          ;
 
 classname : identifier
@@ -845,8 +847,14 @@ parse (FILE* f, const string& name)
 //  Validation functions
 //-----------------------------------------------------------------------------
 static void validate_class() {
-    if (inside_class || func_counter > 0 || if_counter > 0) {
+    if (!indent_stack.empty() || func_counter > 0 || if_counter > 0) {
         error(yysource_location(), "Nested class definition not allowed!");
+    }
+}
+
+static void validate_function() {
+    if (if_counter > 0 || loop_counter > 0) {
+        error(yysource_location(), "Function definitions not allowed inside conditionals or loops!");
     }
 }
 
