@@ -397,7 +397,7 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
     ;
 
 /* RULES FOR AST */
-INT_LITERAL : _INTEGER ;
+INT_LITERAL : _INTEGER { check_integer($TEXT); };
 STRING_LITERAL : (_STRINGLITERALPIECE _BLANK*)+ ;
 
 
@@ -953,3 +953,18 @@ indent (const char* indent)
   }
 }
 
+static void
+check_integer (const char* integer)
+{
+  int number = strtol(integer,NULL,0);
+  if (number > 1073741824)
+  {
+    error(yysource_location(), "Integer greater than 2^30");
+    return;
+  }
+  if (number == 1073741824)
+  {
+    /* TODO: Add '-' */
+    return;
+  }
+}
