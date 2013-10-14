@@ -357,7 +357,7 @@ _COMMENT : '#' _NO_NEWLINE* ;
 * : '\\' _NEWLINE ;
 * : _BOL _BLANK* _NEWLINE %prefer             { YYSET_TOKEN(indent($TEXT)); }
     | _BOL _BLANK* _COMMENT _NEWLINE %prefer  { YYSET_TOKEN(indent($TEXT)); }
-    | _BOL _BLANK+ %prefer                    { YYSET_TOKEN(indent($TEXT)); }
+    | _BOL _BLANK* %prefer                    { YYSET_TOKEN(indent($TEXT)); }
     ;
 
 /* Exclude keywords. */
