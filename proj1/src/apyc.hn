@@ -924,7 +924,6 @@ indent (const char* indent)
   // dedent
   else if (indent_length < current_indent_length)
   {
-    bool firstpass = true;
     while (!indent_stack.empty() && indent_length < current_indent_length)
     {
       current_indent_length -= indent_stack.top();
@@ -934,11 +933,7 @@ indent (const char* indent)
       {
         return DEDENT;
       }
-      if (!firstpass) 
-      {
-        yyqueue_token(DEDENT, 0, 0, "", 8);
-      }
-      firstpass = false;
+      yyqueue_token(DEDENT, 0, 0, "", 0);
     }
     error(yysource_location(), "Indentation error");
   }
