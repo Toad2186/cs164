@@ -382,13 +382,9 @@ _COMMENT : '#' _NO_NEWLINE* ;
 /* HANDLE INDENTATION */
 * : (' ' | '\t' | '\r')+ ;
 * : '\\' _NEWLINE ;
-* : _BOL _BLANK* _NEWLINE %prefer
-    | _BOL _BLANK* _COMMENT _NEWLINE %prefer
-    ;
-* : _BOL _BLANK+ %prefer
-    {
-      YYSET_TOKEN(indent($TEXT));
-    }
+* : _BOL _BLANK* _NEWLINE %prefer             { YYSET_TOKEN(indent($TEXT)); }
+    | _BOL _BLANK* _COMMENT _NEWLINE %prefer  { YYSET_TOKEN(indent($TEXT)); }
+    | _BOL _BLANK* %prefer                    { YYSET_TOKEN(indent($TEXT)); }
     ;
 
 /* Exclude keywords. */
@@ -897,7 +893,7 @@ indent_size (const char* indent)
     }
     else
     {
-      error(yysource_location(), "Indentation error");
+      break;
     }
   }
   return size;
@@ -907,55 +903,43 @@ static int
 indent (const char* indent)
 {
   int indent_length = indent_size(indent);
+  cout << "HELLO HELLO HELLO";
+  cout << indent_length;
+
+  // indent
   if (indent_length > current_indent_length)
   {
     indent_stack.push(indent_length - current_indent_length);
     current_indent_length = indent_length;
     return INDENT;
   }
+
+  // dedent
   else if (indent_length < current_indent_length)
   {
-    if (!indent_stack.empty())
+    bool firstpass = true;
+    while (!indent_stack.empty() && indent_length < current_indent_length)
     {
       current_indent_length -= indent_stack.top();
       indent_stack.pop();
-    }
-    else
-    {
-      error(yysource_location(), "Indentation error");
-    }
-    while (indent_length < current_indent_length)
-    {
-      yyqueue_token(DEDENT, 0, 0, "", 8);
-      if (!indent_stack.empty())
+
+      if (indent_length == current_indent_length) 
       {
-        current_indent_length -= indent_stack.top();
-        indent_stack.pop();
+        return DEDENT;
       }
-      else
+      if (!firstpass) 
       {
-        error(yysource_location(), "Indentation error");
+        yyqueue_token(DEDENT, 0, 0, "", 8);
       }
+      firstpass = false;
     }
-    
-    if (current_indent_length == indent_length)
-      error(yysource_location(), "Indentation error");
-    else
-      return DEDENT;
+    error(yysource_location(), "Indentation error");
   }
+
+  // same level of indentation
   else
   {
     return -1;
   }
-  error(yysource_location(), "Indentation error");
-  return 0;
 }
 
-/* Format for correct printing in AST*/
-/*
-static char*
-format_string (const char* indent)
-{
-
-}
-*/
