@@ -274,6 +274,7 @@ static int indent(const char *indent);
 %token ATTRIBUTEREF "@attributeref"
 %token SUBSCRIPTION "@subscription"
 %token SLICING "@slicing"
+%token STATEMENT_LIST "@stmt_list"
 
 %token STRING
 %token STRING_LITERAL   "@string_literal"
@@ -412,7 +413,7 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
  * Main statements and expressions
  * TODO: Figure out why we can't use NEWLINE instead of '\n'
 */
-stmt_list : stmt ('\n'! stmt)* '\n'!
+stmt_list : stmt ('\n'! stmt)* '\n'!?
           ;
 
 /*
@@ -669,7 +670,7 @@ if_stmt :  "if"! expression ":"!
             }
         ;
 
-elseif_stmt : "\n"! else_stmt
+elseif_stmt : else_stmt
             | "\n"! "elif"! expression ":"! suite elseif_stmt
             ;
 
@@ -690,8 +691,11 @@ for_stmt : "for" target_list "in" expression_list ":"
          ;
 
 // TODO: Change \n to NEWLINE
-suite : simple_stmt (";"! simple_stmt)* ";"!?
+suite : simple_stmt (";"! simple_stmt)* ";"!?   { $$ = $^(STATEMENT_LIST,
+                                                          $*); 
+                                                }
       | "\n"! INDENT! statement DEDENT! 
+            { $$ = $^(STATEMENT_LIST, $*); }
       ;
 
 statement : stmt_list 
@@ -715,8 +719,8 @@ funcname : identifier
 parameter_list : /* empty */
                | identifier parameter_list
                ;
-funcblock : INDENT! stmt_list DEDENT!       { $$ = $^{BLOCK
-          | 
+funcblock : INDENT! stmt_list DEDENT!       
+          ; 
 
 // TODO: Should not end with a suite. Define classsuite.
 classdef : "class" classname ":"!
@@ -903,8 +907,6 @@ static int
 indent (const char* indent)
 {
   int indent_length = indent_size(indent);
-  cout << "HELLO HELLO HELLO";
-  cout << indent_length;
 
   // indent
   if (indent_length > current_indent_length)
