@@ -398,7 +398,7 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
 
 /* RULES FOR AST */
 INT_LITERAL : _INTEGER ;
-STRING_LITERAL : _STRINGLITERALPIECE+ ;
+STRING_LITERAL : (_STRINGLITERALPIECE _BLANK*)+ ;
 
 
 /**************** GRAMMAR RULES ********************/
@@ -629,7 +629,6 @@ pass_stmt : "pass"
           ;
 
 string_literal : STRING_LITERAL ;
-// TODO: Support >>
 print_stmt : "print" (">>" string_literal)? expression_list_no_dangling ","!
                       { if ($string_literal.missing())
                           $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling);
@@ -913,6 +912,7 @@ indent_size (const char* indent)
   return size;
 }
 
+/* TODO: fix bare '\n' token addition */
 static int
 indent (const char* indent)
 {
