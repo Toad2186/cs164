@@ -372,7 +372,7 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
     ;
 
 /* RULES FOR AST */
-INT_LITERAL : _INTEGER { check_integer($TEXT);} ;
+INT_LITERAL : _INTEGER ;
 STRING_LITERAL : _STRINGLITERALPIECE+ ;
 
 
@@ -882,18 +882,3 @@ format_string (const char* indent)
 
 }
 */
-
-static int
-check_integer (const char* text)
-{
-  int number = strtol(text,NULL,0);
-
-  if (number > 1073741824)
-  {
-    error(yysource_location(), "Decimal integer greater than 2^30");
-    return 1;
-  }
-  else {
-    return number;
-  }
-}
