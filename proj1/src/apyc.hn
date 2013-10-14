@@ -281,6 +281,7 @@ static int indent(const char *indent);
 
 %token INDENT
 %token DEDENT
+%token NEWLINE
 
 /* Keywords */
 %token AND "and"
@@ -931,11 +932,14 @@ indent (const char* indent)
 
       if (indent_length == current_indent_length) 
       {
+        yyqueue_token('\n', 0, 0, "", 0);
         return DEDENT;
       }
+      yyqueue_token('\n', 0, 0, "", 0);
       yyqueue_token(DEDENT, 0, 0, "", 0);
     }
     error(yysource_location(), "Indentation error");
+    return -1;
   }
 
   // same level of indentation
