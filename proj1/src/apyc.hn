@@ -283,6 +283,7 @@ static int indent(const char *indent);
 %token FUNC_DEF "@def"
 %token BLOCK "@block"
 %token FORMALS_LIST "@formals_list"
+%token CALL "@call"
 
 %token STRING
 %token STRING_LITERAL   "@string_literal"
@@ -441,11 +442,20 @@ expression_list : expression (","! expression)+ ","! { $$ = $^(EXPR_LIST, $*); }
 */
 
 /* Introduces a s/r conflict. GLR should be able to solve this one. */
-expression_list : expression_list_no_dangling ","! 
-                | expression_list_no_dangling
+expression_list : expression_list_no_dangling0 ","! 
+                | expression_list_no_dangling0
                 ;
 
-expression_list_no_dangling : expression (","! expression)*
+expression_list_no_dangling0 : expression
+                            |  expression_list_no_dangling2
+                            ;
+
+expression_list_no_dangling1 : expression
+            { $$ = $^(EXPR_LIST, $*); }
+                            |  expression_list_no_dangling2
+                            ;
+
+expression_list_no_dangling2 : expression (","! expression)+
             { $$ = $^(EXPR_LIST, $*); }
                             ;
 
@@ -462,6 +472,12 @@ parenth_form : "("! tuple ")"!
 
 tuple : (expression ","!)+ expression?            { $$ = $^(TUPLE, $*); }
       ;
+
+call : primary "("! expression_list ")"!          
+        { $$ = $^(CALL, $*); }
+     | primary "("! ")"!                         
+        { $$ = $^(CALL, $primary, $^(EXPR_LIST)); }
+     ;
 
 /*
 tuple : expression 
@@ -483,6 +499,7 @@ primary : atom
         | attributeref
         | subscription
         | slicing
+        | call
         ;
 
 // TODO: String literal node
@@ -566,9 +583,17 @@ a_expr : m_expr
 /*
  * Comparisons. Need to differentiate between compare and left_compare
 */
-comparison_expr : a_expr comp_operator a_expr                   { $$ = make_compare($*); }
-                | a_expr comp_operator comparison_expr          { $$ = make_left_compare($*); }
+comparison_expr : a_expr comp_operator a_expr                   
+                    { $$ = make_compare($*); }
+                | left_comparison_expr comp_operator a_expr     
+                    { $$ = make_compare($*); }
                 ;
+
+left_comparison_expr : a_expr comp_operator a_expr          
+                            { $$ = make_left_compare($*); }
+                     | left_comparison_expr comp_operator a_expr 
+                            { $$ = make_left_compare($*); }
+                     ;
 
 comp_operator : "<"
               | ">"
@@ -628,7 +653,7 @@ expression_stmt : expression_list
                 ;
 
 assignment_stmt : target_list "="! expression           { $$ = make_assign($*); } 
-//| target_list "="! tuple                { $$ = make_assign($*); }
+                | target_list "="! tuple                { $$ = make_assign($*); }
                 ;
 
 target_list : "("! main_target_list ")"!
@@ -653,22 +678,22 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
 pass_stmt : "pass"      { $$ = $^(EMPTY);} ;
 
 string_literal : STRING_LITERAL ;
-print_stmt : "print" (">>" string_literal)? expression_list_no_dangling
+print_stmt : "print" (">>" string_literal)? expression_list_no_dangling1
                       { if ($string_literal.missing())
-                          $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling);
+                          $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling1);
                         else
-                          $$ = $^(PRINTLN, $string_literal, $expression_list_no_dangling);
+                          $$ = $^(PRINTLN, $string_literal, $expression_list_no_dangling1);
                       }
-           | "print" (">>" string_literal)? expression_list_no_dangling ","!
+           | "print" (">>" string_literal)? expression_list_no_dangling1 ","!
                       { if ($string_literal.missing())
-                          $$ = $^(PRINT, $^(EMPTY), $expression_list_no_dangling);
+                          $$ = $^(PRINT, $^(EMPTY), $expression_list_no_dangling1);
                         else
-                          $$ = $^(PRINT, $string_literal, $expression_list_no_dangling);
+                          $$ = $^(PRINT, $string_literal, $expression_list_no_dangling1);
                       }
           ;
 
 // TODO: Check if return is valid (i.e. in funcdef)
-return_stmt : "return"! parenth_form         { validate_return();
+return_stmt : "return"! expression           { validate_return();
                                                $$ = $^(RETURN, $*); 
                                              }
             | "return"!                      { validate_return();
@@ -697,14 +722,14 @@ compound_stmt : if_stmt
 
 if_stmt :  "if"! expression ":"! 
             { ++if_counter; }
-            suite elseif_stmt
+            suite "\n"! elseif_stmt
             { --if_counter;
               $$ = $^(IF, $*); 
             }
         ;
 
 elseif_stmt : else_stmt
-            | "\n"! "elif"! expression ":"! suite elseif_stmt 
+            | "elif"! expression ":"! suite elseif_stmt 
                     { $$ = $^(IF, $*); }
             ;
 
