@@ -307,7 +307,6 @@ static int indent(const char *indent);
 %token ELIF "elif"
 %token ELSE "else"
 %token FOR "for"
-%token FROM "from"
 %token IF "if"
 %token IN "in"
 %token IS "is"
@@ -633,9 +632,9 @@ comp_operator : "<"
               | "!="
               | "is"
 // TODO: Not pass in a constant isnot and notin. 
-              | L="is not"              { $$ = make_id("isnot", $L.loc()); } 
+              | L="is" "not"              { $$ = make_id("isnot", $L.loc()); } 
               | "in"
-              | L="not in"              { $$ = make_id("notin", $L.loc()); }
+              | L="not" "in"              { $$ = make_id("notin", $L.loc()); }
               ;
 
 /*
@@ -764,12 +763,12 @@ if_stmt :  "if"! expression ":"!
             }
         ;
 
-elseif_stmt : else_stmt
-            | "elif"! expression ":"! suite elseif_stmt
+elseif_stmt :  else_stmt
+            | "\n" "elif"! expression ":"! suite elseif_stmt
                     { $$ = $^(IF, $*); }
             ;
 
-else_stmt : "else"! ":"! suite
+else_stmt : "\n" "else"! ":"! suite
           | /* empty */         { $$ = $^(STATEMENT_LIST); }
           ;
 
@@ -799,7 +798,6 @@ suite : simple_stmt (";"! simple_stmt)* ";"!?  { $$ = $^(STATEMENT_LIST,
 
 statement : stmt_list 
           | stmt_list "\n"! statement
-          | compound_stmt "\n"!
           ;
 
 //-----------------------------------------------------------------------------
@@ -863,8 +861,7 @@ type_list : type_list0
           | /* empty */                    { $$ = $^(TYPE_LIST); }
           ;
 
-type_list0 : type               { $$ = $^(TYPE_LIST, $*); }
-           | type (","! type)*  { $$ = $^(TYPE_LIST, $*); }
+type_list0 : type (","! type)*         { $$ = $^(TYPE_LIST, $*); }
            ;
 
 type_function : "("! type_list ")"! "->"! type
@@ -877,8 +874,7 @@ type_class : "of"! "["! type_var (","! type_var)* "]"!    { $$ = $^(TYPE_FORMALS
            ;
 
 type_constructor : "of"! "["! type_list0 "]"!
-                    { $$ = $^(TYPE_LIST, $*); }
-                 | "of"! type       { $$ = $^(TYPE_LIST, $*); }
+                 | "of"! type   
                  ;
 
 identifier_type : identifier type_constructor { $$ = $^(TYPE, $*); }
