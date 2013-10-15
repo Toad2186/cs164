@@ -715,19 +715,33 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
 
 pass_stmt : "pass"      { $$ = $^(STATEMENT_LIST);} ;
 
-print_stmt : "print" (">>" string_literal ","!)? expression_list_no_dangling1
-                      { if ($string_literal.missing())
+print_stmt : "print" (">>" expression ","!)? expression_list_no_dangling1
+                      { if ($expression.missing())
                           $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling1);
                         else
-                          $$ = $^(PRINTLN, $string_literal, $expression_list_no_dangling1);
+                          $$ = $^(PRINTLN, $expression, $expression_list_no_dangling1);
                       }
-           | "print" (">>" string_literal ","!)? expression_list_no_dangling1 ","!
-                      { if ($string_literal.missing())
+           | "print" (">>" expression ","!)? expression_list_no_dangling1 ","!
+                      { if ($expression.missing())
                           $$ = $^(PRINT, $^(EMPTY), $expression_list_no_dangling1);
                         else
-                          $$ = $^(PRINT, $string_literal, $expression_list_no_dangling1);
+                          $$ = $^(PRINT, $expression, $expression_list_no_dangling1);
                       }
-          ;
+           | "print" (">>" expression ","!?)?
+                      { if ($expression.missing()) {
+                          $$ = $^(PRINTLN, $^(EMPTY), $^(EXPR_LIST));
+                          $$.set_loc(yysource_location());
+                        } else {
+                          $$ = $^(PRINTLN, $expression, $^(EXPR_LIST));
+                        }
+                      }
+       /*    | "print" (">>" string_literal ","!)? ","
+                      { if ($string_literal.missing())
+                          $$ = $^(PRINT, $^(EMPTY), $^(STATEMENT_LIST));
+                        else
+                          $$ = $^(PRINT, $string_literal, $^(STATEMENT_LIST));
+                      }
+         */ ;
 
 // TODO: Check if return is valid (i.e. in funcdef)
 return_stmt : "return"! expression           { validate_return();
@@ -767,11 +781,11 @@ if_stmt :  "if"! expression ":"!
         ;
 
 elseif_stmt :  else_stmt
-            | "\n" "elif"! expression ":"! suite elseif_stmt
+            | "\n"! "elif"! expression ":"! suite elseif_stmt
                     { $$ = $^(IF, $*); }
             ;
 
-else_stmt : "\n" "else"! ":"! suite
+else_stmt : "\n"! "else"! ":"! suite
           | /* empty */         { $$ = $^(STATEMENT_LIST); }
           ;
 
