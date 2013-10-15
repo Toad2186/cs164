@@ -722,7 +722,7 @@ compound_stmt : if_stmt
 
 if_stmt :  "if"! expression ":"! 
             { ++if_counter; }
-            suite "\n"! elseif_stmt
+            suite "\n"!? elseif_stmt
             { --if_counter;
               $$ = $^(IF, $*); 
             }
