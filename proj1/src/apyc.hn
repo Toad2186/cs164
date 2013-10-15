@@ -468,10 +468,11 @@ expression_list0 : expression_list_no_dangling1 ","!
                  | expression_list_no_dangling1 
                  ;
 */
+/*
 expression_list_no_dangling0 : expression
                             |  expression_list_no_dangling2
                             ;
-
+*/
 expression_list_no_dangling1 : expression
             { $$ = $^(EXPR_LIST, $*); }
                             |  expression_list_no_dangling2
@@ -694,6 +695,9 @@ assignment_stmt : target_list "="! expression           { $$ = make_assign($*); 
 
 target_list : "("! main_target_list ")"!
             | "["! main_target_list "]"!
+            | "["! target "]"!          { $$ = $^(TARGET_LIST, $*); }
+            | "("! target ")"!          { $$ = $^(TARGET_LIST, $*); }
+            | target
             | main_target_list
             ;
 
@@ -702,7 +706,6 @@ target_list : "("! main_target_list ")"!
 // Might need to look at further
 main_target_list : target (","! target)+ ","!? { $$ = $^(TARGET_LIST, $*); }
                  | target ","!                 { $$ = $^(TARGET_LIST, $*); }                   
-                 | target
                  ;
 
 target : identifier                 /* RR conflict with atom. Resolve with GLR. */
