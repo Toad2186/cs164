@@ -37,6 +37,16 @@ AST_Token::append_text(const string& s)
     throw logic_error ("unimplemented operation: append_text");
 }
 
+/** Represents a type_var */
+class TypeVar_Token : public AST_Token {
+private:
+    void print (ostream& out, int indent) {
+        out << "(type_var " << lineNumber() << " " << as_string() << ")";
+    }
+
+    TOKEN_CONSTRUCTORS(TypeVar_Token, AST_Token);
+};
+
 /** Represents an id. */
 class Id_Token : public AST_Token {
 private:
@@ -206,6 +216,7 @@ const String_Token String_Token::raw_factory (RAWSTRING);
 TOKEN_FACTORY(String_Token, STRING);
 TOKEN_FACTORY(Id_Token, ID);
 TOKEN_FACTORY(Int_Token, INT_LITERAL);
+TOKEN_FACTORY(TypeVar_Token, TYPE_VAR);
 
     
 

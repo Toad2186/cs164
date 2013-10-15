@@ -324,8 +324,8 @@ static int indent(const char *indent);
 %token TYPE_LIST "@type_list"
 %token TYPE_FUNCTION "@function_type"
 %token TYPED_ID "@typed_id"
-%token TYPE_VAR "@type_var"
 %token TYPE_FORMALS "@type_formals_list"
+%token TYPE_VAR "@type_var"
 
 %%
 
@@ -420,9 +420,6 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
     ;
 
 TYPE_VAR : '$' ( _LETTER | _DIGIT | "_" )*
-    {
-        $$ = make_id($TEXT, 0);
-    }
          ;
 
 /* RULES FOR AST */
@@ -860,7 +857,7 @@ classname : identifier
 //  Translated from various rules as given on the proj1 handout
 //-----------------------------------------------------------------------------
 
-type_var : TYPE_VAR                     { $$ = $^(TYPE_VAR, $*); }
+type_var : TYPE_VAR                     //{ $$ = make_type_var($*); }
          ;
 
 type_list : type_list0                     
@@ -880,7 +877,7 @@ type_class : "of"! "["! type_var (","! type_var)* "]"!    { $$ = $^(TYPE_FORMALS
            ;
 
 type_constructor : "of"! "["! type_list0 "]"!
-                 | "of"! type   
+                 | "of"! type                   { $$ = $^(TYPE_LIST, $*); } 
                  ;
 
 identifier_type : identifier type_constructor { $$ = $^(TYPE, $*); }
