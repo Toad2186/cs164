@@ -11,4 +11,4 @@ def a(y::str):
 
 x = a()
 y = a(3)
-z = a('hello')
+z = a('world')

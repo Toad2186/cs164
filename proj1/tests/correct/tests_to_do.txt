@@ -57,6 +57,11 @@ Hilfiger says to "Specifically exclude the keywords that would be used for them.
 Do we recognize the string concatenation with "same strings"?
 Do we need the ability to loop by tuple?
 
+What is going on with the escapeseq in string and not allowing '\n' in shortstringitem?...weird...
+What is a python octinteger?
+What are python imaginary numbers?
+Exponent floats? Normal floats? What?
+
 
 Lexical Structure
 L1. No Unicode strings (e.g., u"Foo")
