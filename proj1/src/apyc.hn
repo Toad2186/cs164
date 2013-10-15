@@ -690,13 +690,13 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
 pass_stmt : "pass"      { $$ = $^(STATEMENT_LIST);} ;
 
 string_literal : STRING_LITERAL ;
-print_stmt : "print" (">>" string_literal)? expression_list_no_dangling1
+print_stmt : "print" (">>" string_literal)? ","! expression_list_no_dangling1
                       { if ($string_literal.missing())
                           $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling1);
                         else
                           $$ = $^(PRINTLN, $string_literal, $expression_list_no_dangling1);
                       }
-           | "print" (">>" string_literal)? expression_list_no_dangling1 ","!
+           | "print" (">>" string_literal)? ","! expression_list_no_dangling1 ","!
                       { if ($string_literal.missing())
                           $$ = $^(PRINT, $^(EMPTY), $expression_list_no_dangling1);
                         else
