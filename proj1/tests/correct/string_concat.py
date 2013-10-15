@@ -1,7 +1,4 @@
-print 'hello' + 'goodbye'
-
-a = """what"""
-b = 'is'
-c = "going on"
-
-d = a + b + c
+x = "one"   "two" "three"
+y = """sdf"""   """sdf"""
+z = 'sdf' 'sdf'
+a = "dsf" 'sdf'

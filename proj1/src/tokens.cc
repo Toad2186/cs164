@@ -60,8 +60,8 @@ private:
      *  overridden to provide additional processing during the
      *  construction of a node or token.] */
     Int_Token* post_make () {
-        std::string token = as_string();
-        value = std::atoi(token.c_str()); 
+        std::string token = as_string(); 
+        value = std::atoi(token.c_str());
         return this;
     }
 
@@ -81,12 +81,13 @@ private:
         if (syntax () == RAWSTRING) {
             literal_text = string (as_chars (), text_size ());
         } else {
+            // get rid of starting and ending quotes
+            const char* s = as_chars();
             int v;
-            const char* s = as_chars ();
             size_t i;
             i = 0;
             literal_text.clear ();
-            while (i < text_size ()) {
+            while (i < text_size()) {
                 i += 1;
                 if (s[i-1] == '\\') {
                     i += 1;
@@ -115,7 +116,7 @@ private:
                         break;
                     }
                     case 'x': {
-                        if (i+2 > text_size () || 
+                        if (i+2 > text_size() || 
                             !isxdigit (s[i]) || !isxdigit (s[i+1])) {
                             error (s, "bad hexadecimal escape sequence");
                             break;
