@@ -100,6 +100,11 @@ static AST_Ptr make_id (AST_Ptr& token);
 static AST_Ptr make_id (const char *text, const char*loc);
 
 /*
+ * Makes type var node
+*/
+static AST_Ptr make_type_var(const List_Ptr &operands);
+
+/*
  * Makes an if_expr node.
  * Expects a list of three operands: condition, expr1, expr2
 */
@@ -284,6 +289,7 @@ static int indent(const char *indent);
 %token BLOCK "@block"
 %token FORMALS_LIST "@formals_list"
 %token CALL "@call"
+%token CLASS "@class"
 
 %token STRING
 %token STRING_LITERAL   "@string_literal"
@@ -296,7 +302,6 @@ static int indent(const char *indent);
 /* Keywords */
 %token AND "and"
 %token BREAK "break"
-%token CLASS "class"
 %token CONTINUE "continue"
 %token DEF "def"
 %token ELIF "elif"
@@ -321,6 +326,7 @@ static int indent(const char *indent);
 %token TYPE_FUNCTION "@function_type"
 %token TYPED_ID "@typed_id"
 %token TYPE_VAR "@type_var"
+%token TYPE_FORMALS "@type_formals_list"
 
 %%
 
@@ -417,6 +423,12 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
     }
     ;
 
+TYPE_VAR : '$' ( _LETTER | _DIGIT | "_" )*
+    {
+        $$ = make_id($TEXT, 0);
+    }
+         ;
+
 /* RULES FOR AST */
 INT_LITERAL : _INTEGER { check_integer($TEXT); };
 STRING_LITERAL : (_STRINGLITERALPIECE _BLANK*)+ ;
@@ -483,11 +495,23 @@ tuple_parenth : "("! tuple ")"!
 tuple : (expression ","!)+ expression?            { $$ = $^(TUPLE, $*); }
       ;
 
-call : primary "("! expression_list0 ")"!          
+call : primary "("! argument_list ")"!          
         { $$ = $^(CALL, $*); }
      | primary "("! ")"!                         
         { $$ = $^(CALL, $primary, $^(EXPR_LIST)); }
+     | identifier type_class "("! argument_list ")"!
+            { $$ = $^(CALL, $^(TYPED_ID, 
+                               $identifier, 
+                               $type_class, 
+                               $^(TYPE_LIST)),
+                               $argument_list);
+            }
      ;
+
+argument_list : /* empty */     { $$ = $^(EXPR_LIST, $*); }
+              | expression (","! expression)* ","!?
+                    { $$ = $^(EXPR_LIST, $*); }
+              ;
 
 /*
 tuple : expression 
@@ -500,7 +524,7 @@ tuple : expression
 */
 identifier : IDENTIFIER     { $$ = make_id($*); }
            ;
-atom : identifier
+atom : identifier 
      | literal
      | enclosure
      ;
@@ -540,7 +564,7 @@ key_datum_list : key_datum (","! key_datum)* ","!?
 key_datum : expression ":"! expression       { $$ = $^(PAIR, $*); }
           ;
 
-attributeref : primary "."! identifier       { $$ = $^(ATTRIBUTEREF, $*); }
+attributeref : primary "."! identifier "("!? ")"!?      { $$ = $^(ATTRIBUTEREF, $*); }
              ;
 
 subscription : primary "["! expression "]"! { $$ = $^(SUBSCRIPTION, $*); }
@@ -665,6 +689,7 @@ expression_stmt : expression_list
                 ;
 
 assignment_stmt : target_list "="! expression           { $$ = make_assign($*); } 
+                | target_list "="! "::"! type           { $$ = make_assign($*); }
                 | target_list "="! tuple                { $$ = make_assign($*); }
                 | target_list "="! assignment_stmt      { $$ = make_assign($*); }
                 ;
@@ -676,8 +701,10 @@ target_list : "("! main_target_list ")"!
 
 // Needed to resolve some conflicts with target lists
 // Is this still needed?
+// Might need to look at further
 main_target_list : target (","! target)+ ","!? { $$ = $^(TARGET_LIST, $*); }
-                 | target                     
+                 | target ","!                 { $$ = $^(TARGET_LIST, $*); }                   
+                 | target
                  ;
 
 target : identifier                 /* RR conflict with atom. Resolve with GLR. */
@@ -797,8 +824,10 @@ funcdef : "def"! funcname "("! parameter_list ")"! ret_func ":"! "\n"!?
 funcname : identifier
          ;
 
-parameter_list : /* empty */                { $$ = $^(FORMALS_LIST); }
-               | (parameter)+               { $$ = $^(FORMALS_LIST, $*); }
+parameter_list : /* empty */                
+                    { $$ = $^(FORMALS_LIST); }
+               | parameter (","! parameter)* ","!?
+                    { $$ = $^(FORMALS_LIST, $*); }
                ;
 
 parameter : identifier "::"! type           { $$ = $^(TYPED_ID, $*); }
@@ -813,11 +842,14 @@ funcblock : INDENT! statement DEDENT!       { $$ = $^(BLOCK, $*); }
           ; 
 
 // TODO: Should not end with a suite. Define classsuite.
-classdef : "class" classname type_class ":"! classblock
-            { validate_class(); }
+classdef : "class"! classname type_class ":"! classblock
+            { validate_class();
+              $$ = $^(CLASS, $*); 
+            }
          ;
 
-classblock : INDENT! stmt_list DEDENT!       { $$ = $^(BLOCK, $*); }
+classblock : "\n"! INDENT! stmt_list DEDENT!       { $$ = $^(BLOCK, $*); }
+           | simple_stmt_list 
            ;
 
 classname : identifier
@@ -828,24 +860,36 @@ classname : identifier
 //  Types
 //  Translated from various rules as given on the proj1 handout
 //-----------------------------------------------------------------------------
-type_var : "$"! identifier { $$ = $^(TYPE_VAR, $*); }
+
+type_var : TYPE_VAR                     { $$ = $^(TYPE_VAR, $*); }
          ;
 
-type_list : /* empty */                     { $$ = $^(TYPE_LIST); }
-          | type (","! type)*               { $$ = $^(TYPE_LIST, $*); }
+type_list : type_list0                     
+          | /* empty */                    { $$ = $^(TYPE_LIST); }
           ;
+
+type_list0 : type               { $$ = $^(TYPE_LIST, $*); }
+           | type (","! type)*  { $$ = $^(TYPE_LIST, $*); }
+           ;
+
 type_function : "("! type_list ")"! "->"! type
                     { $$ = $^(TYPE_FUNCTION, $type, $type_list); }
               ;
 
-type_class : identifier "of"! "["! type_list "]"!    { $$ = $^(TYPE, $*); }
-           | identifier "of"! type                   { $$ = $^(TYPE, $*); }
+type_class : "of"! "["! type_var (","! type_var)* "]"!    { $$ = $^(TYPE_FORMALS, $*); }
+           | "of"! type                                   { $$ = $^(TYPE_FORMALS, $*); }
+           | /* empty */                                  { $$ = $^(TYPE_FORMALS, $*); }
            ;
 
-type : identifier           { $$ = $^(TYPE, $*, $^(TYPE_LIST)); }
+type_constructor : "of"! "["! type_list0 "]"!
+                    { $$ = $^(TYPE_LIST, $*); }
+                 | "of"! type       { $$ = $^(TYPE_LIST, $*); }
+                 ;
+
+type : identifier type_constructor    
+     | identifier                      { $$ = $^(TYPE, $identifier, $^(TYPE_LIST)); }    
      | type_var              
      | type_function          
-     | type_class
      ;
 
 ret_func : "::"! type
@@ -908,6 +952,14 @@ static AST_Ptr make_id (AST_Ptr& token)
 static AST_Ptr make_id (const char *text, const char *loc) {
     AST_Ptr result = AST::make_token(ID, strlen(text), text, false);
     result->set_loc(loc);
+    return result;
+}
+
+static AST_Ptr make_type_var(const List_Ptr &operands) {
+    AST_Ptr token = operands->at(0); 
+    AST_Ptr result = AST::make_token(TYPE_VAR, token->text_size(),
+                                     token->as_chars(), false);
+    result->set_loc(token->loc());
     return result;
 }
 
@@ -992,6 +1044,8 @@ static void validate_continue() {
 static void
 check_identifier (const char* text)
 {
+  if (text[0] == '$')
+    text++;
   for (int i = 0; i < 15; i++ )
   {
     if ( invalid_keywords[i].compare(text) == 0 ) {
