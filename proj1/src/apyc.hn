@@ -458,14 +458,16 @@ expression_list : expression (","! expression)+ ","! { $$ = $^(EXPR_LIST, $*); }
 */
 
 /* Introduces a s/r conflict. GLR should be able to solve this one. */
+/*
 expression_list : expression_list_no_dangling0 ","! 
                 | expression_list_no_dangling0
                 ;
-
+*/
+/*
 expression_list0 : expression_list_no_dangling1 ","!
                  | expression_list_no_dangling1 
                  ;
-
+*/
 expression_list_no_dangling0 : expression
                             |  expression_list_no_dangling2
                             ;
@@ -485,15 +487,16 @@ expression : conditional_expr
 enclosure : parenth_form
           | list_display
           | dict_display
-          | tuple_parenth
+ //         | tuple_parenth
           ;
 
 parenth_form : "("! expression ")"!         
+             | "("! tuple ")"! 
              ;
-
+/*
 tuple_parenth : "("! tuple ")"!
               ;
-
+*/
 tuple : (expression ","!)+ expression?            { $$ = $^(TUPLE, $*); }
       ;
 
@@ -680,12 +683,12 @@ simple_stmt : expression_stmt
             | continue_stmt
             ;
 
-expression_stmt : expression_list
+expression_stmt : expression | tuple
                 ;
 
 assignment_stmt : target_list "="! expression           { $$ = make_assign($*); } 
                 | target_list "="! "::"! type           { $$ = make_assign($*); }
-                | target_list "="! tuple                { $$ = make_assign($*); }
+               // | target_list "="! tuple                { $$ = make_assign($*); }
                 | target_list "="! assignment_stmt      { $$ = make_assign($*); }
                 ;
 
@@ -780,7 +783,7 @@ while_stmt : "while"! expression ":"!
              }
            ;
 
-for_stmt : "for"! target_list "in"! expression_list ":"! 
+for_stmt : "for"! target_list "in"! expression_stmt ":"! 
            { ++loop_counter; }
            suite else_stmt
            { --loop_counter;
