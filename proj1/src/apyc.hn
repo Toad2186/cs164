@@ -20,6 +20,8 @@
 
 */
 
+%expect-rr 16
+%expect 6
 
 %define semantic_tree_type "AST"
 
@@ -448,28 +450,7 @@ string_literal : string_literal_piece+
 stmt_list : stmt ('\n'! stmt)* '\n'!
           ;
 
-/*
-expression_list : expression (","! expression)+ ","! { $$ = $^(EXPR_LIST, $*); }
-                | expression ","!                    { $$ = $^(EXPR_LIST, $*); } 
-                ;
-*/
-
 /* Introduces a s/r conflict. GLR should be able to solve this one. */
-/*
-expression_list : expression_list_no_dangling0 ","! 
-                | expression_list_no_dangling0
-                ;
-*/
-/*
-expression_list0 : expression_list_no_dangling1 ","!
-                 | expression_list_no_dangling1 
-                 ;
-*/
-/*
-expression_list_no_dangling0 : expression
-                            |  expression_list_no_dangling2
-                            ;
-*/
 expression_list_no_dangling1 : expression
             { $$ = $^(EXPR_LIST, $*); }
                             |  expression_list_no_dangling2
@@ -485,16 +466,13 @@ expression : conditional_expr
 enclosure : parenth_form
           | list_display
           | dict_display
- //         | tuple_parenth
           ;
 
+/* May need GLR to distinguish between expression list and tuple */
 parenth_form : "("! expression ")"!         
              | "("! tuple ")"! 
+             | "("! ")"!    { $$ = $^(TUPLE, $*); }
              ;
-/*
-tuple_parenth : "("! tuple ")"!
-              ;
-*/
 tuple : (expression ","!)+ expression?            { $$ = $^(TUPLE, $*); }
       ;
 
@@ -871,7 +849,7 @@ classname : identifier
 //  Translated from various rules as given on the proj1 handout
 //-----------------------------------------------------------------------------
 
-type_var : TYPE_VAR                     //{ $$ = make_type_var($*); }
+type_var : TYPE_VAR                     
          ;
 
 type_list : type_list0                     
@@ -963,14 +941,6 @@ static AST_Ptr make_id (AST_Ptr& token)
 static AST_Ptr make_id (const char *text, const char *loc) {
     AST_Ptr result = AST::make_token(ID, strlen(text), text, false);
     result->set_loc(loc);
-    return result;
-}
-
-static AST_Ptr make_type_var(const List_Ptr &operands) {
-    AST_Ptr token = operands->at(0); 
-    AST_Ptr result = AST::make_token(TYPE_VAR, token->text_size(),
-                                     token->as_chars(), false);
-    result->set_loc(token->loc());
     return result;
 }
 
