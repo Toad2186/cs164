@@ -162,12 +162,14 @@ static int if_counter;
 static int loop_counter;
 // Keeps track if we're in a function
 static int func_counter;
-// Are we in a class?
-static bool inside_class;
 /*
- * Makes sure class is not nested inside a class
+ * Makes sure class is not nested inside anything
 */
 static void validate_class();
+/*
+ * Make sure function is not defined in a loop or if statement
+*/
+static void validate_function();
 /*
  * Makes sure return is inside a function
 */
@@ -180,6 +182,7 @@ static void validate_break();
  * Makes sure continue is valid (inside a loop).
 */
 static void validate_continue();
+
 //-----------------------------------------------------------------------------
 // HELPER FUNCTIONS 
 //-----------------------------------------------------------------------------
@@ -287,6 +290,7 @@ static int indent(const char *indent);
 %token INDENT
 %token DEDENT
 %token NEWLINE
+
 
 /* Keywords */
 %token AND "and"
@@ -411,8 +415,8 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
     ;
 
 /* RULES FOR AST */
-INT_LITERAL : _INTEGER ;
-STRING_LITERAL : _STRINGLITERALPIECE+ ;
+INT_LITERAL : _INTEGER { check_integer($TEXT); };
+STRING_LITERAL : (_STRINGLITERALPIECE _BLANK*)+ ;
 
 /**************** GRAMMAR RULES ********************/
 
@@ -640,15 +644,22 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
             { $$ = $^(TYPED_ID, $*); }
        ;
 
-pass_stmt : "pass"
-          ;
+pass_stmt : "pass"      { $$ = $^(EMPTY);} ;
 
-// TODO: Support >>
-print_stmt : "print" expression_list_no_dangling ","!
-                      { $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling); }
-           | "print" expression_list_no_dangling
-                      { $$ = $^(PRINT, $^(EMPTY), $expression_list_no_dangling); }
-           ;
+string_literal : STRING_LITERAL ;
+print_stmt : "print" (">>" string_literal)? expression_list_no_dangling
+                      { if ($string_literal.missing())
+                          $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling);
+                        else
+                          $$ = $^(PRINTLN, $string_literal, $expression_list_no_dangling);
+                      }
+           | "print" (">>" string_literal)? expression_list_no_dangling ","!
+                      { if ($string_literal.missing())
+                          $$ = $^(PRINT, $^(EMPTY), $expression_list_no_dangling);
+                        else
+                          $$ = $^(PRINT, $string_literal, $expression_list_no_dangling);
+                      }
+          ;
 
 // TODO: Check if return is valid (i.e. in funcdef)
 return_stmt : "return"! tuple                { validate_return();
@@ -729,7 +740,9 @@ statement : stmt_list
 //-----------------------------------------------------------------------------
 
 funcdef : "def"! funcname "("! parameter_list ")"! ret_func ":"! "\n"! 
-            { ++func_counter; }
+            { validate_function();
+              ++func_counter; 
+            }
           funcblock
             { --func_counter;
               $$ = $^(FUNC_DEF, $*); 
@@ -754,10 +767,8 @@ funcblock : INDENT! statement DEDENT!       { $$ = $^(BLOCK, $*); }
           ; 
 
 // TODO: Should not end with a suite. Define classsuite.
-classdef : "class" classname type_class ":"!
-            { validate_class(); inside_class = true; }
-            classblock
-            { inside_class = false; }
+classdef : "class" classname type_class ":"! classblock
+            { validate_class(); }
          ;
 
 classblock : INDENT! stmt_list DEDENT!       { $$ = $^(BLOCK, $*); }
@@ -898,8 +909,14 @@ parse (FILE* f, const string& name)
 //  Validation functions
 //-----------------------------------------------------------------------------
 static void validate_class() {
-    if (inside_class || func_counter > 0 || if_counter > 0) {
+    if (!indent_stack.empty() || func_counter > 0 || if_counter > 0) {
         error(yysource_location(), "Nested class definition not allowed!");
+    }
+}
+
+static void validate_function() {
+    if (if_counter > 0 || loop_counter > 0) {
+        error(yysource_location(), "Function definitions not allowed inside conditionals or loops!");
     }
 }
 
@@ -965,6 +982,7 @@ indent_size (const char* indent)
   return size;
 }
 
+/* TODO: fix bare '\n' token addition */
 static int
 indent (const char* indent)
 {
@@ -1005,3 +1023,18 @@ indent (const char* indent)
   }
 }
 
+static void
+check_integer (const char* integer)
+{
+  int number = strtol(integer,NULL,0);
+  if (number > 1073741824)
+  {
+    error(yysource_location(), "Integer greater than 2^30");
+    return;
+  }
+  if (number == 1073741824)
+  {
+    /* TODO: Add '-' */
+    return;
+  }
+}

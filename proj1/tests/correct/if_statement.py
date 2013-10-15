@@ -6,3 +6,6 @@ if 3:
   if 4:
     print y
 print x
+
+if 3:
+  print z

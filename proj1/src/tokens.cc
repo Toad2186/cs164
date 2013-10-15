@@ -60,11 +60,8 @@ private:
      *  overridden to provide additional processing during the
      *  construction of a node or token.] */
     Int_Token* post_make () {
-        value = strtol(as_chars(),NULL,0);
-        if (value > 1073741824)
-        {
-          error(as_chars(), "Decimal integer greater than 2^30");
-        }
+        std::string token = as_string(); 
+        value = std::atoi(token.c_str());
         return this;
     }
 
@@ -85,27 +82,12 @@ private:
             literal_text = string (as_chars (), text_size ());
         } else {
             // get rid of starting and ending quotes
-            string input = string (as_chars (), text_size ());
-            char quote = input.at(0); 
-            size_t len = input.length();
-            size_t new_len = 0;
-            const char* s;
-            if (len > 6 && input.at(1) == quote && input.at(2) == quote && input.at(len-1) == quote && input.at(len-2) == quote && input.at(len-3) == quote)
-            {
-              new_len = len - 6;
-              s = input.substr(3,new_len).c_str();
-            }
-            else 
-            {
-              new_len = len - 2;
-              s = input.substr(1,new_len).c_str();
-            }
-
+            const char* s = as_chars();
             int v;
             size_t i;
             i = 0;
             literal_text.clear ();
-            while (i < new_len) {
+            while (i < text_size()) {
                 i += 1;
                 if (s[i-1] == '\\') {
                     i += 1;
@@ -134,7 +116,7 @@ private:
                         break;
                     }
                     case 'x': {
-                        if (i+2 > new_len || 
+                        if (i+2 > text_size() || 
                             !isxdigit (s[i]) || !isxdigit (s[i+1])) {
                             error (s, "bad hexadecimal escape sequence");
                             break;
