@@ -470,10 +470,14 @@ expression : conditional_expr
 enclosure : parenth_form
           | list_display
           | dict_display
+          | tuple_parenth
           ;
 
-parenth_form : "("! tuple ")"!         
+parenth_form : "("! expression ")"!         
              ;
+
+tuple_parenth : "("! tuple ")"!
+              ;
 
 tuple : (expression ","!)+ expression?            { $$ = $^(TUPLE, $*); }
       ;
@@ -682,7 +686,7 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
             { $$ = $^(TYPED_ID, $*); }
        ;
 
-pass_stmt : "pass"      { $$ = $^(EMPTY);} ;
+pass_stmt : "pass"      { $$ = $^(STATEMENT_LIST);} ;
 
 string_literal : STRING_LITERAL ;
 print_stmt : "print" (">>" string_literal)? expression_list_no_dangling1
@@ -727,16 +731,17 @@ compound_stmt : if_stmt
               | classdef
               ;
 
+// TODO: REPLACE the optional \n. Find out why it's there
 if_stmt :  "if"! expression ":"! 
             { ++if_counter; }
-            suite "\n"! elseif_stmt
+            suite elseif_stmt
             { --if_counter;
               $$ = $^(IF, $*); 
             }
         ;
 
 elseif_stmt : else_stmt
-            | "elif"! expression ":"! suite "\n"!? elseif_stmt
+            | "elif"! expression ":"! suite elseif_stmt
                     { $$ = $^(IF, $*); }
             ;
 
@@ -769,8 +774,8 @@ suite : simple_stmt (";"! simple_stmt)* ";"!?  { $$ = $^(STATEMENT_LIST,
       ;
 
 statement : stmt_list 
-          | stmt_list NEWLINE! statement
-          | compound_stmt
+          | stmt_list "\n"! statement
+          | compound_stmt "\n"!
           ;
 
 //-----------------------------------------------------------------------------
