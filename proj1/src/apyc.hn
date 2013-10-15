@@ -426,7 +426,7 @@ TYPE_VAR : '$' ( _LETTER | _DIGIT | "_" )*
          ;
 
 /* RULES FOR AST */
-INT_LITERAL : _INTEGER { check_integer($TEXT); };
+INT_LITERAL : _INTEGER ;
 /**************** GRAMMAR RULES ********************/
 
 /*
@@ -1119,15 +1119,4 @@ indent (const char* indent)
     return -1;
   }
   return -1;
-}
-
-static void
-check_integer (const char* integer)
-{
-  int number = strtol(integer,NULL,0);
-  if (number > 1073741824)
-  {
-    error(yysource_location(), "Integer greater than 2^30");
-    return;
-  }
 }
