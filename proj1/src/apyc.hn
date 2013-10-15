@@ -426,7 +426,7 @@ TYPE_VAR : '$' ( _LETTER | _DIGIT | "_" )*
          ;
 
 /* RULES FOR AST */
-INT_LITERAL : _INTEGER { check_integer($TEXT); };
+INT_LITERAL : _INTEGER ;
 /**************** GRAMMAR RULES ********************/
 
 /*
@@ -468,10 +468,11 @@ expression_list0 : expression_list_no_dangling1 ","!
                  | expression_list_no_dangling1 
                  ;
 */
+/*
 expression_list_no_dangling0 : expression
                             |  expression_list_no_dangling2
                             ;
-
+*/
 expression_list_no_dangling1 : expression
             { $$ = $^(EXPR_LIST, $*); }
                             |  expression_list_no_dangling2
@@ -688,12 +689,15 @@ expression_stmt : expression | tuple
 
 assignment_stmt : target_list "="! expression           { $$ = make_assign($*); } 
                 | target_list "="! "::"! type           { $$ = make_assign($*); }
-               // | target_list "="! tuple                { $$ = make_assign($*); }
+                | target_list "="! tuple                { $$ = make_assign($*); }
                 | target_list "="! assignment_stmt      { $$ = make_assign($*); }
                 ;
 
 target_list : "("! main_target_list ")"!
             | "["! main_target_list "]"!
+            | "["! target "]"!          { $$ = $^(TARGET_LIST, $*); }
+            | "("! target ")"!          { $$ = $^(TARGET_LIST, $*); }
+            | target
             | main_target_list
             ;
 
@@ -702,7 +706,6 @@ target_list : "("! main_target_list ")"!
 // Might need to look at further
 main_target_list : target (","! target)+ ","!? { $$ = $^(TARGET_LIST, $*); }
                  | target ","!                 { $$ = $^(TARGET_LIST, $*); }                   
-                 | target
                  ;
 
 target : identifier                 /* RR conflict with atom. Resolve with GLR. */
@@ -1119,15 +1122,4 @@ indent (const char* indent)
     return -1;
   }
   return -1;
-}
-
-static void
-check_integer (const char* integer)
-{
-  int number = strtol(integer,NULL,0);
-  if (number > 1073741824)
-  {
-    error(yysource_location(), "Integer greater than 2^30");
-    return;
-  }
 }

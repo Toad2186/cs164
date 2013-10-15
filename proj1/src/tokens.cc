@@ -60,8 +60,11 @@ private:
      *  overridden to provide additional processing during the
      *  construction of a node or token.] */
     Int_Token* post_make () {
-        std::string token = as_string(); 
-        value = std::atoi(token.c_str());
+        value = strtol(as_chars(),NULL,0);
+        if (value > 1073741824)
+        {
+            error(as_chars(), "Integer greater than 2^30");
+        }
         return this;
     }
 
