@@ -447,6 +447,10 @@ expression_list : expression_list_no_dangling0 ","!
                 | expression_list_no_dangling0
                 ;
 
+expression_list0 : expression_list_no_dangling1 ","!
+                 | expression_list_no_dangling1 
+                 ;
+
 expression_list_no_dangling0 : expression
                             |  expression_list_no_dangling2
                             ;
@@ -474,7 +478,7 @@ parenth_form : "("! tuple ")"!
 tuple : (expression ","!)+ expression?            { $$ = $^(TUPLE, $*); }
       ;
 
-call : primary "("! expression_list ")"!          
+call : primary "("! expression_list0 ")"!          
         { $$ = $^(CALL, $*); }
      | primary "("! ")"!                         
         { $$ = $^(CALL, $primary, $^(EXPR_LIST)); }
@@ -632,9 +636,11 @@ not_test : comparison_expr
 //-----------------------------------------------------------------------------
 //  Statements
 //-----------------------------------------------------------------------------
-stmt : simple_stmt (";"! simple_stmt)* ";"!?
+stmt : simple_stmt_list
      | compound_stmt
      ;
+simple_stmt_list : simple_stmt (";"! simple_stmt)* ";"!?
+                 ;
 
 
 //-----------------------------------------------------------------------------
@@ -723,14 +729,14 @@ compound_stmt : if_stmt
 
 if_stmt :  "if"! expression ":"! 
             { ++if_counter; }
-            suite "\n"!? elseif_stmt
+            suite "\n"! elseif_stmt
             { --if_counter;
               $$ = $^(IF, $*); 
             }
         ;
 
 elseif_stmt : else_stmt
-            | "elif"! expression ":"! suite elseif_stmt 
+            | "elif"! expression ":"! suite "\n"!? elseif_stmt
                     { $$ = $^(IF, $*); }
             ;
 
@@ -738,7 +744,7 @@ else_stmt : "else"! ":"! suite
           | /* empty */         { $$ = $^(STATEMENT_LIST); }
           ;
 
-while_stmt : "while" expression ":" 
+while_stmt : "while"! expression ":"! 
              { ++loop_counter; }
              suite else_stmt
              { --loop_counter;
@@ -746,18 +752,18 @@ while_stmt : "while" expression ":"
              }
            ;
 
-for_stmt : "for" target_list "in" expression_list ":" 
+for_stmt : "for"! target_list "in"! expression_list ":"! 
            { ++loop_counter; }
            suite else_stmt
            { --loop_counter;
-             $$ = $^(WHILE, $*); 
+             $$ = $^(FOR, $*); 
            }
          ;
 
 // TODO: Change \n to NEWLINE
-suite : simple_stmt (";"! simple_stmt)* ";"!?   { $$ = $^(STATEMENT_LIST,
+suite : simple_stmt (";"! simple_stmt)* ";"!?  { $$ = $^(STATEMENT_LIST,
                                                           $*); 
-                                                }
+                                               }
       | "\n"! INDENT! statement DEDENT! 
             { $$ = $^(STATEMENT_LIST, $*); }
       ;
@@ -771,7 +777,7 @@ statement : stmt_list
 //  Function and class definitions
 //-----------------------------------------------------------------------------
 
-funcdef : "def"! funcname "("! parameter_list ")"! ret_func ":"! "\n"! 
+funcdef : "def"! funcname "("! parameter_list ")"! ret_func ":"! "\n"!? 
             { validate_function();
               ++func_counter; 
             }
@@ -796,6 +802,7 @@ funcblock : INDENT! statement DEDENT!       { $$ = $^(BLOCK, $*); }
           | "native"! STRING_LITERAL        { $$ = $^(BLOCK, $^(NATIVE, $*)); } 
           | INDENT! "native"! STRING_LITERAL "\n"! DEDENT! 
                 { $$ = $^(BLOCK, $^(NATIVE, $*)); }
+          | simple_stmt_list                { $$ = $^(BLOCK, $*); }
           ; 
 
 // TODO: Should not end with a suite. Define classsuite.
