@@ -623,7 +623,7 @@ simple_stmt : expression_stmt
 expression_stmt : expression_list
                 ;
 
-assignment_stmt : target_list "="! expression_list { $$ = make_assign($*); } 
+assignment_stmt : target_list "="! expression { $$ = make_assign($*); } 
                 ;
 
 target_list : "("! main_target_list ")"!
