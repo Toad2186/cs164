@@ -830,8 +830,12 @@ funcblock : INDENT! statement DEDENT!       { $$ = $^(BLOCK, $*); }
           ; 
 
 // TODO: Should not end with a suite. Define classsuite.
-classdef : "class"! classname type_class ":"! classblock
-            { validate_class();
+classdef : "class"! classname type_class ":"!
+            {
+              validate_class();
+            }
+           classblock
+            {
               $$ = $^(CLASS, $*); 
             }
          ;
@@ -988,7 +992,7 @@ parse (FILE* f, const string& name)
 //  Validation functions
 //-----------------------------------------------------------------------------
 static void validate_class() {
-    if (!indent_stack.empty() || func_counter > 0 || if_counter > 0) {
+    if (!indent_stack.empty()) {
         error(yysource_location(), "Nested class definition not allowed!");
     }
 }
