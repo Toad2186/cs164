@@ -1,4 +1,0 @@
-while x:
-  pass
-
-pass
