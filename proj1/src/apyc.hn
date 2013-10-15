@@ -500,15 +500,8 @@ tuple : (expression ","!)+ expression?            { $$ = $^(TUPLE, $*); }
 
 call : primary "("! argument_list ")"!          
         { $$ = $^(CALL, $*); }
-     | primary "("! ")"!                         
-        { $$ = $^(CALL, $primary, $^(EXPR_LIST)); }
-     | identifier type_class "("! argument_list ")"!
-            { $$ = $^(CALL, $^(TYPED_ID, 
-                               $identifier, 
-                               $type_class, 
-                               $^(TYPE_LIST)),
-                               $argument_list);
-            }
+     | identifier_type "("! argument_list ")"!
+            { $$ = $^(CALL, $*); } 
      ;
 
 argument_list : /* empty */     { $$ = $^(EXPR_LIST, $*); }
@@ -887,6 +880,9 @@ type_constructor : "of"! "["! type_list0 "]"!
                     { $$ = $^(TYPE_LIST, $*); }
                  | "of"! type       { $$ = $^(TYPE_LIST, $*); }
                  ;
+
+identifier_type : identifier type_constructor { $$ = $^(TYPE, $*); }
+                ;
 
 type : identifier type_constructor    
      | identifier                      { $$ = $^(TYPE, $identifier, $^(TYPE_LIST)); }    
