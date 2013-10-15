@@ -1,0 +1,17 @@
+(module 0
+    (if 1
+        (id 1 True)
+        (stmt_list 2
+            (print 2
+                ()
+                (expr_list 2
+                    (string_literal 2 "\042blank lines should not matter, regardless of\042")))
+            (println 4
+                ()
+                (expr_list 4
+                    (string_literal 4 "\042indentation.\042"))))
+        (stmt_list 0))
+    (println 6
+        ()
+        (expr_list 6
+            (int_literal 6 42))))
