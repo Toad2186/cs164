@@ -1,3 +1,7 @@
+x = 3
+y = 1
+z = 1
+
 if 4:
   print x
 

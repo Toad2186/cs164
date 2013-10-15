@@ -8,5 +8,6 @@ if not False:
     print "hello world"
 
 # In a loop
-while not 0:
-    print "world hello"
+x = 0
+while not x:
+    x = 1

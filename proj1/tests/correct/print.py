@@ -27,6 +27,6 @@ print (9,7,)
 
 # Multiple argument printing (including trailing ',')
 print 1,2
-print 1,2,3
 print 1,2,3,
+print 1,2,3
 # TODO: What else can print print? Take a look at python grammar.

@@ -14,5 +14,7 @@ if False or False or True:
     print 'up'
 
 # Using it in a loop
-while 4 > 3 or 2 < 9:
+x = 1
+while x > 0 or x == 1:
     print 'bro'
+    x = 0

@@ -19,3 +19,4 @@ print 4 / l
 print t / 2 / l
 print 2 / t / l
 print t / l / 2
+
