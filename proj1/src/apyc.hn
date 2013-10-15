@@ -500,15 +500,8 @@ tuple : (expression ","!)+ expression?            { $$ = $^(TUPLE, $*); }
 
 call : primary "("! argument_list ")"!          
         { $$ = $^(CALL, $*); }
-     | primary "("! ")"!                         
-        { $$ = $^(CALL, $primary, $^(EXPR_LIST)); }
-     | identifier type_class "("! argument_list ")"!
-            { $$ = $^(CALL, $^(TYPED_ID, 
-                               $identifier, 
-                               $type_class, 
-                               $^(TYPE_LIST)),
-                               $argument_list);
-            }
+     | identifier_type "("! argument_list ")"!
+            { $$ = $^(CALL, $*); } 
      ;
 
 argument_list : /* empty */     { $$ = $^(EXPR_LIST, $*); }
@@ -567,7 +560,7 @@ key_datum_list : key_datum (","! key_datum)* ","!?
 key_datum : expression ":"! expression       { $$ = $^(PAIR, $*); }
           ;
 
-attributeref : primary "."! identifier "("!? ")"!?      { $$ = $^(ATTRIBUTEREF, $*); }
+attributeref : primary "."! identifier      { $$ = $^(ATTRIBUTEREF, $*); }
              ;
 
 subscription : primary "["! expression "]"! { $$ = $^(SUBSCRIPTION, $*); }
@@ -888,9 +881,12 @@ type_constructor : "of"! "["! type_list0 "]"!
                  | "of"! type       { $$ = $^(TYPE_LIST, $*); }
                  ;
 
-type : identifier type_constructor    
+identifier_type : identifier type_constructor { $$ = $^(TYPE, $*); }
+                ;
+
+type : identifier_type          
      | identifier                      { $$ = $^(TYPE, $identifier, $^(TYPE_LIST)); }    
-     | type_var              
+     | type_var                  
      | type_function          
      ;
 
