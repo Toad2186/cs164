@@ -314,6 +314,8 @@ static int indent(const char *indent);
 %token TYPE "@type"
 %token TYPE_LIST "@type_list"
 %token TYPE_FUNCTION "@function_type"
+%token TYPED_ID "@typed_id"
+%token TYPE_VAR "@type_var"
 
 %%
 
@@ -634,6 +636,8 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
        | attributeref               /* RR conflict with primary. Resolve with GLR. */
        | subscription               /* RR conflict with primary. Resolve with GLR. */
        | slicing                    /* RR conflict with primary. Resolve with GLR. */
+       | identifier "::"! type      // Type
+            { $$ = $^(TYPED_ID, $*); }
        ;
 
 pass_stmt : "pass"
@@ -724,7 +728,7 @@ statement : stmt_list
 //  Function and class definitions
 //-----------------------------------------------------------------------------
 
-funcdef : "def"! funcname "("! parameter_list ")"! ":"! "\n"! 
+funcdef : "def"! funcname "("! parameter_list ")"! ret_func ":"! "\n"! 
             { ++func_counter; }
           funcblock
             { --func_counter;
@@ -736,18 +740,28 @@ funcname : identifier
          ;
 
 parameter_list : /* empty */                { $$ = $^(FORMALS_LIST); }
-               | identifier parameter_list  { $$ = $^(FORMALS_LIST, $*); }
+               | (parameter)+               { $$ = $^(FORMALS_LIST, $*); }
                ;
+
+parameter : identifier "::"! type           { $$ = $^(TYPED_ID, $*); }
+          | identifier                       
+          ;
+
 funcblock : INDENT! statement DEDENT!       { $$ = $^(BLOCK, $*); } 
-          | "native" STRING_LITERAL         { $$ = $^(NATIVE, $*); } 
+          | "native"! STRING_LITERAL        { $$ = $^(BLOCK, $^(NATIVE, $*)); } 
+          | INDENT! "native"! STRING_LITERAL "\n"! DEDENT! 
+                { $$ = $^(BLOCK, $^(NATIVE, $*)); }
           ; 
 
 // TODO: Should not end with a suite. Define classsuite.
-classdef : "class" classname ":"!
+classdef : "class" classname type_class ":"!
             { validate_class(); inside_class = true; }
-            suite
+            classblock
             { inside_class = false; }
          ;
+
+classblock : INDENT! stmt_list DEDENT!       { $$ = $^(BLOCK, $*); }
+           ;
 
 classname : identifier
           ;
@@ -755,21 +769,31 @@ classname : identifier
 
 //-----------------------------------------------------------------------------
 //  Types
+//  Translated from various rules as given on the proj1 handout
 //-----------------------------------------------------------------------------
-type_var : "$" identifier { $$ = $^(TYPE_VAR, $*); }
+type_var : "$"! identifier { $$ = $^(TYPE_VAR, $*); }
+         ;
 
-type_list : /* empty */!                   { $$ = $^(TYPE_LIST); }
-          | type ("," type)*               { $$ = $^(TYPE_LIST, $*); }
+type_list : /* empty */                     { $$ = $^(TYPE_LIST); }
+          | type (","! type)*               { $$ = $^(TYPE_LIST, $*); }
           ;
 type_function : "("! type_list ")"! "->"! type
                     { $$ = $^(TYPE_FUNCTION, $type, $type_list); }
               ;
 
+type_class : identifier "of"! "["! type_list "]"!    { $$ = $^(TYPE, $*); }
+           | identifier "of"! type                   { $$ = $^(TYPE, $*); }
+           ;
+
 type : identifier           { $$ = $^(TYPE, $*, $^(TYPE_LIST)); }
      | type_var              
      | type_function          
+     | type_class
      ;
 
+ret_func : "::"! type
+         | /* empty */      { $$ = $^(EMPTY); }
+         ;
 %%
 
 bool debugParser;
