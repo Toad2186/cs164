@@ -30,5 +30,5 @@ print e * f / d
 print a / c * b
 
 # Mod math and random maths
-print f & e * 3
+print f and e * 3
 print 2 * b % d
