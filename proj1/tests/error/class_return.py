@@ -1,0 +1,2 @@
+class a:
+    return 'b'
