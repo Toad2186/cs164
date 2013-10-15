@@ -1066,20 +1066,16 @@ indent (const char* indent)
   {
     return -1;
   }
+  return -1;
 }
 
-static int
+static void
 check_integer (const char* integer)
 {
   int number = strtol(integer,NULL,0);
   if (number > 1073741824)
   {
     error(yysource_location(), "Integer greater than 2^30");
-    return -1;
-  }
-  if (number == 1073741824)
-  {
-    /* TODO: Add '-' */
-    return number;
+    return;
   }
 }
