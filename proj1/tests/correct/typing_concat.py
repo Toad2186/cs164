@@ -7,4 +7,3 @@ z = x + y
 a = 'he said'
 b::str = 'stuff'
 c = a + b
-
