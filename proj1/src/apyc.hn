@@ -688,7 +688,7 @@ expression_stmt : expression | tuple
 
 assignment_stmt : target_list "="! expression           { $$ = make_assign($*); } 
                 | target_list "="! "::"! type           { $$ = make_assign($*); }
-               // | target_list "="! tuple                { $$ = make_assign($*); }
+                | target_list "="! tuple                { $$ = make_assign($*); }
                 | target_list "="! assignment_stmt      { $$ = make_assign($*); }
                 ;
 
