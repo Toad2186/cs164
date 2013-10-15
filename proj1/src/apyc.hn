@@ -407,6 +407,7 @@ _COMMENT : '#' _NO_NEWLINE* ;
     | _BOL _BLANK* _COMMENT _NEWLINE %prefer 
     | _BOL _BLANK* %prefer                    { YYSET_TOKEN(indent($TEXT)); }
     | _EOF %prefer                    { YYSET_TOKEN(indent($TEXT)); }
+    | _COMMENT
     ;
 
 /* Exclude keywords. */
