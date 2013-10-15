@@ -666,6 +666,7 @@ expression_stmt : expression_list
 
 assignment_stmt : target_list "="! expression           { $$ = make_assign($*); } 
                 | target_list "="! tuple                { $$ = make_assign($*); }
+                | target_list "="! assignment_stmt      { $$ = make_assign($*); }
                 ;
 
 target_list : "("! main_target_list ")"!
