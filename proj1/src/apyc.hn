@@ -457,14 +457,18 @@ enclosure : parenth_form
           | dict_display
           ;
 
-parenth_form : "("! tuple ")"!          
+parenth_form : "("! tuple ")"!         
              ;
 
+tuple : (expression ","!)+ expression?            { $$ = $^(TUPLE, $*); }
+      ;
+
+/*
 tuple : expression 
       | expression (","! expression)+ ","!?         { $$ = $^(TUPLE, $*); }
       | expression ","!                             { $$ = $^(TUPLE, $*); }
       ;
-
+*/
 /*
  * Basic units
 */
@@ -512,7 +516,7 @@ key_datum : expression ":"! expression       { $$ = $^(PAIR, $*); }
 attributeref : primary "."! identifier       { $$ = $^(ATTRIBUTEREF, $*); }
              ;
 
-subscription : primary "["! expression_list "]"! { $$ = $^(SUBSCRIPTION, $*); }
+subscription : primary "["! expression "]"! { $$ = $^(SUBSCRIPTION, $*); }
              ;
 
 //-----------------------------------------------------------------------------
@@ -623,7 +627,8 @@ simple_stmt : expression_stmt
 expression_stmt : expression_list
                 ;
 
-assignment_stmt : target_list "="! expression { $$ = make_assign($*); } 
+assignment_stmt : target_list "="! expression           { $$ = make_assign($*); } 
+//| target_list "="! tuple                { $$ = make_assign($*); }
                 ;
 
 target_list : "("! main_target_list ")"!
@@ -633,7 +638,8 @@ target_list : "("! main_target_list ")"!
 
 // Needed to resolve some conflicts with target lists
 // Is this still needed?
-main_target_list : target (","! target)* ","!? { $$ = $^(TARGET_LIST, $*); }
+main_target_list : target (","! target)+ ","!? { $$ = $^(TARGET_LIST, $*); }
+                 | target                     
                  ;
 
 target : identifier                 /* RR conflict with atom. Resolve with GLR. */
@@ -662,7 +668,7 @@ print_stmt : "print" (">>" string_literal)? expression_list_no_dangling
           ;
 
 // TODO: Check if return is valid (i.e. in funcdef)
-return_stmt : "return"! tuple                { validate_return();
+return_stmt : "return"! parenth_form         { validate_return();
                                                $$ = $^(RETURN, $*); 
                                              }
             | "return"!                      { validate_return();
@@ -1023,18 +1029,18 @@ indent (const char* indent)
   }
 }
 
-static void
+static int
 check_integer (const char* integer)
 {
   int number = strtol(integer,NULL,0);
   if (number > 1073741824)
   {
     error(yysource_location(), "Integer greater than 2^30");
-    return;
+    return -1;
   }
   if (number == 1073741824)
   {
     /* TODO: Add '-' */
-    return;
+    return number;
   }
 }
