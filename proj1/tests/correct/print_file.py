@@ -1,1 +1,1 @@
-print >> "file.txt" 3
+print >>"file.txt", 3
