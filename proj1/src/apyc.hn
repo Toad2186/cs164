@@ -402,9 +402,10 @@ _COMMENT : '#' _NO_NEWLINE* ;
 /* HANDLE INDENTATION */
 * : (' ' | '\t' | '\r')+ ;
 * : '\\' _NEWLINE ;
-* : _BOL _BLANK* _NEWLINE %prefer             { YYSET_TOKEN(indent($TEXT)); }
-    | _BOL _BLANK* _COMMENT _NEWLINE %prefer  { YYSET_TOKEN(indent($TEXT)); }
+* : _BOL _BLANK* _NEWLINE %prefer             
+    | _BOL _BLANK* _COMMENT _NEWLINE %prefer 
     | _BOL _BLANK* %prefer                    { YYSET_TOKEN(indent($TEXT)); }
+    | _EOF %prefer                    { YYSET_TOKEN(indent($TEXT)); }
     ;
 
 /* Exclude keywords. */
