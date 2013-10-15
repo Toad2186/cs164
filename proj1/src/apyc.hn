@@ -278,6 +278,11 @@ static int indent(const char *indent);
 %token SUBSCRIPTION "@subscription"
 %token SLICING "@slicing"
 %token STATEMENT_LIST "@stmt_list"
+%token TARGET_LIST "@target_list"
+%token NATIVE "@native"
+%token FUNC_DEF "@def"
+%token BLOCK "@block"
+%token FORMALS_LIST "@formals_list"
 
 %token STRING
 %token STRING_LITERAL   "@string_literal"
@@ -306,6 +311,15 @@ static int indent(const char *indent);
 %token PRINT "print"
 %token RETURN "return"
 %token WHILE "while"
+
+/*
+ * Types
+*/
+%token TYPE "@type"
+%token TYPE_LIST "@type_list"
+%token TYPE_FUNCTION "@function_type"
+%token TYPED_ID "@typed_id"
+%token TYPE_VAR "@type_var"
 
 %%
 
@@ -404,7 +418,6 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
 INT_LITERAL : _INTEGER { check_integer($TEXT); };
 STRING_LITERAL : (_STRINGLITERALPIECE _BLANK*)+ ;
 
-
 /**************** GRAMMAR RULES ********************/
 
 /*
@@ -418,7 +431,7 @@ program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
  * Main statements and expressions
  * TODO: Figure out why we can't use NEWLINE instead of '\n'
 */
-stmt_list : stmt ('\n'! stmt)* '\n'!?
+stmt_list : stmt ('\n'! stmt)* '\n'!
           ;
 
 /*
@@ -620,13 +633,15 @@ target_list : "("! main_target_list ")"!
 
 // Needed to resolve some conflicts with target lists
 // Is this still needed?
-main_target_list : target (","! target)* ","!? 
+main_target_list : target (","! target)* ","!? { $$ = $^(TARGET_LIST, $*); }
                  ;
 
 target : identifier                 /* RR conflict with atom. Resolve with GLR. */
        | attributeref               /* RR conflict with primary. Resolve with GLR. */
        | subscription               /* RR conflict with primary. Resolve with GLR. */
        | slicing                    /* RR conflict with primary. Resolve with GLR. */
+       | identifier "::"! type      // Type
+            { $$ = $^(TYPED_ID, $*); }
        ;
 
 pass_stmt : "pass"      { $$ = $^(EMPTY);} ;
@@ -683,23 +698,28 @@ if_stmt :  "if"! expression ":"!
         ;
 
 elseif_stmt : else_stmt
-            | "\n"! "elif"! expression ":"! suite elseif_stmt
+            | "\n"! "elif"! expression ":"! suite elseif_stmt 
+                    { $$ = $^(IF, $*); }
             ;
 
-else_stmt : "else"! expression ":"! suite
-          | /* empty */
+else_stmt : "else"! ":"! suite
+          | /* empty */         { $$ = $^(STATEMENT_LIST); }
           ;
 
 while_stmt : "while" expression ":" 
              { ++loop_counter; }
              suite else_stmt
-             { --loop_counter; }
+             { --loop_counter;
+               $$ = $^(WHILE, $*);
+             }
            ;
 
 for_stmt : "for" target_list "in" expression_list ":" 
            { ++loop_counter; }
            suite else_stmt
-           { --loop_counter; }
+           { --loop_counter;
+             $$ = $^(WHILE, $*); 
+           }
          ;
 
 // TODO: Change \n to NEWLINE
@@ -719,30 +739,72 @@ statement : stmt_list
 //  Function and class definitions
 //-----------------------------------------------------------------------------
 
-funcdef : "def" funcname "(" parameter_list ")" ":" 
-            { validate_function(); ++func_counter; }
+funcdef : "def"! funcname "("! parameter_list ")"! ret_func ":"! "\n"! 
+            { validate_function();
+              ++func_counter; 
+            }
           funcblock
-            { --func_counter; }
+            { --func_counter;
+              $$ = $^(FUNC_DEF, $*); 
+            }
         ;
 
 funcname : identifier
          ;
 
-parameter_list : /* empty */
-               | identifier parameter_list
+parameter_list : /* empty */                { $$ = $^(FORMALS_LIST); }
+               | (parameter)+               { $$ = $^(FORMALS_LIST, $*); }
                ;
-funcblock : INDENT! stmt_list DEDENT!       
+
+parameter : identifier "::"! type           { $$ = $^(TYPED_ID, $*); }
+          | identifier                       
+          ;
+
+funcblock : INDENT! statement DEDENT!       { $$ = $^(BLOCK, $*); } 
+          | "native"! STRING_LITERAL        { $$ = $^(BLOCK, $^(NATIVE, $*)); } 
+          | INDENT! "native"! STRING_LITERAL "\n"! DEDENT! 
+                { $$ = $^(BLOCK, $^(NATIVE, $*)); }
           ; 
 
 // TODO: Should not end with a suite. Define classsuite.
-classdef : "class" classname ":"!
+classdef : "class" classname type_class ":"! classblock
             { validate_class(); }
-            suite
          ;
+
+classblock : INDENT! stmt_list DEDENT!       { $$ = $^(BLOCK, $*); }
+           ;
 
 classname : identifier
           ;
 
+
+//-----------------------------------------------------------------------------
+//  Types
+//  Translated from various rules as given on the proj1 handout
+//-----------------------------------------------------------------------------
+type_var : "$"! identifier { $$ = $^(TYPE_VAR, $*); }
+         ;
+
+type_list : /* empty */                     { $$ = $^(TYPE_LIST); }
+          | type (","! type)*               { $$ = $^(TYPE_LIST, $*); }
+          ;
+type_function : "("! type_list ")"! "->"! type
+                    { $$ = $^(TYPE_FUNCTION, $type, $type_list); }
+              ;
+
+type_class : identifier "of"! "["! type_list "]"!    { $$ = $^(TYPE, $*); }
+           | identifier "of"! type                   { $$ = $^(TYPE, $*); }
+           ;
+
+type : identifier           { $$ = $^(TYPE, $*, $^(TYPE_LIST)); }
+     | type_var              
+     | type_function          
+     | type_class
+     ;
+
+ret_func : "::"! type
+         | /* empty */      { $$ = $^(EMPTY); }
+         ;
 %%
 
 bool debugParser;
@@ -804,8 +866,8 @@ static AST_Ptr make_id (const char *text, const char *loc) {
 }
 
 static AST_Ptr make_if_expr(const List_Ptr &operands) {
-    return YYMAKE_TREE(IF_EXPR, operands->at(0),
-                       operands->at(1), operands->at(2));
+    return YYMAKE_TREE(IF_EXPR, operands->at(1),
+                       operands->at(0), operands->at(2));
 }
 
 static AST_Ptr make_and(const List_Ptr &operands) {
