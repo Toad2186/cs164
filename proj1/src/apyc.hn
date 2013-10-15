@@ -199,6 +199,7 @@ static string keywords[18] = {"and", "break", "class", "continue", "def", "elif"
 static stack<int> indent_stack;
 static int current_indent_length = 0;
 static bool ignore_next_indent = false;
+static int bracket_depth = 0;
 static void check_identifier(const char *text);
 static int indent_size(const char *indent);
 
@@ -341,6 +342,21 @@ static int indent(const char *indent);
 /*
  * Predefined: _ANY, _UPPER, _LOWER, _CONTROL, _EOL, _BOL
  */
+
+'\n' :
+        {
+          if (bracket_count > 0)
+          {
+            YYIGNORE;
+          }
+        }
+     ;
+'{' : { bracket_count++ };
+'[' : { bracket_count++ };
+'(' : { bracket_count++ };
+'}' : { bracket_count-- };
+']' : { bracket_count-- };
+')' : { bracket_count-- };
 
 _BLANK : ' ' | '\t' ;
 _NEWLINE : '\n' ;
@@ -1074,8 +1090,8 @@ indent (const char* indent)
 {
   int indent_length = indent_size(indent);
 
-  //just saw backslash
-  if (ignore_next_indent == true) {
+  //just saw backslash or are in bracketed region
+  if (ignore_next_indent == true || bracket_depth > 0) {
     return -1;
   }
 
