@@ -198,6 +198,7 @@ static string keywords[18] = {"and", "break", "class", "continue", "def", "elif"
 
 static stack<int> indent_stack;
 static int current_indent_length = 0;
+static bool ignore_next_indent = false;
 static void check_identifier(const char *text);
 static int indent_size(const char *indent);
 
@@ -406,7 +407,7 @@ _COMMENT : '#' _NO_NEWLINE* ;
 
 /* HANDLE INDENTATION */
 * : (' ' | '\t' | '\r')+ ;
-* : '\\' _NEWLINE ;
+* : '\\' _NEWLINE {ignore_next_indent = true;};
 * : _BOL _BLANK* _NEWLINE %prefer             
     | _BOL _BLANK* _COMMENT _NEWLINE %prefer 
     | _BOL _BLANK* %prefer                    { YYSET_TOKEN(indent($TEXT)); }
@@ -639,8 +640,8 @@ not_test : comparison_expr
 //-----------------------------------------------------------------------------
 //  Statements
 //-----------------------------------------------------------------------------
-stmt : simple_stmt_list
-     | compound_stmt
+stmt : simple_stmt_list {ignore_next_indent = false}
+     | compound_stmt {ignore_next_indent = false}
      ;
 simple_stmt_list : simple_stmt (";"! simple_stmt)* ";"!?
                  ;
@@ -1072,6 +1073,11 @@ static int
 indent (const char* indent)
 {
   int indent_length = indent_size(indent);
+
+  //just saw backslash
+  if (ignore_next_indent == true) {
+    return -1;
+  }
 
   // indent
   if (indent_length > current_indent_length)
