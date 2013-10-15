@@ -560,7 +560,7 @@ key_datum_list : key_datum (","! key_datum)* ","!?
 key_datum : expression ":"! expression       { $$ = $^(PAIR, $*); }
           ;
 
-attributeref : primary "."! identifier "("!? ")"!?      { $$ = $^(ATTRIBUTEREF, $*); }
+attributeref : primary "."! identifier      { $$ = $^(ATTRIBUTEREF, $*); }
              ;
 
 subscription : primary "["! expression "]"! { $$ = $^(SUBSCRIPTION, $*); }
@@ -884,9 +884,9 @@ type_constructor : "of"! "["! type_list0 "]"!
 identifier_type : identifier type_constructor { $$ = $^(TYPE, $*); }
                 ;
 
-type : identifier type_constructor    
+type : identifier_type          
      | identifier                      { $$ = $^(TYPE, $identifier, $^(TYPE_LIST)); }    
-     | type_var              
+     | type_var                  
      | type_function          
      ;
 
