@@ -285,8 +285,8 @@ static int indent(const char *indent);
 %token FORMALS_LIST "@formals_list"
 %token CALL "@call"
 
-%token STRING
-%token STRING_LITERAL   "@string_literal"
+%token STRING "@string"
+%token RAWSTRING "@rawstring"
 
 %token INDENT
 %token DEDENT
@@ -385,11 +385,8 @@ _RAWLONGSTRING : "'''" ( _RAWLONGSTRINGITEM* ("'" | "''")? )* "'''"
     | "\"\"\"" ( _RAWLONGSTRINGITEM* ("\"" | "\"\"")? )* "\"\"\""
     ;
 
-_RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
-RAWSTRING : _RAWSTRING ;
-_STRINGLITERALPIECE : ( _SHORTSTRING | _LONGSTRING )
-    | _RAWSTRING
-    ;
+RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
+STRING : _SHORTSTRING | _LONGSTRING ;
 
 /* TODO: fix */
 /* Unsupported Keywords. Error */
@@ -419,8 +416,6 @@ IDENTIFIER : ( _LETTER | "_" ) ( _LETTER | _DIGIT | "_" )*
 
 /* RULES FOR AST */
 INT_LITERAL : _INTEGER { check_integer($TEXT); };
-STRING_LITERAL : (_STRINGLITERALPIECE _BLANK*)+ ;
-
 /**************** GRAMMAR RULES ********************/
 
 /*
@@ -429,6 +424,14 @@ STRING_LITERAL : (_STRINGLITERALPIECE _BLANK*)+ ;
 program : stmt_list   { theTree = $^(MODULE, $*); $$ = NULL; }
         | /* empty */ { theTree = $^(MODULE); $$ = NULL; }
         ;
+
+/* for literals */
+string_literal_piece : STRING
+                     | RAWSTRING
+                     ;
+string_literal : string_literal_piece+
+      ;
+
 
 /*
  * Main statements and expressions
@@ -513,7 +516,7 @@ primary : atom
         ;
 
 // TODO: String literal node
-literal : STRING_LITERAL
+literal : string_literal
         | INT_LITERAL
         ;
 
@@ -689,7 +692,6 @@ target : identifier                 /* RR conflict with atom. Resolve with GLR. 
 
 pass_stmt : "pass"      { $$ = $^(STATEMENT_LIST);} ;
 
-string_literal : STRING_LITERAL ;
 print_stmt : "print" (">>" string_literal)? ","! expression_list_no_dangling1
                       { if ($string_literal.missing())
                           $$ = $^(PRINTLN, $^(EMPTY), $expression_list_no_dangling1);
@@ -805,8 +807,8 @@ parameter : identifier "::"! type           { $$ = $^(TYPED_ID, $*); }
           ;
 
 funcblock : INDENT! statement DEDENT!       { $$ = $^(BLOCK, $*); } 
-          | "native"! STRING_LITERAL        { $$ = $^(BLOCK, $^(NATIVE, $*)); } 
-          | INDENT! "native"! STRING_LITERAL "\n"! DEDENT! 
+          | "native"! string_literal        { $$ = $^(BLOCK, $^(NATIVE, $*)); } 
+          | INDENT! "native"! string_literal "\n"! DEDENT! 
                 { $$ = $^(BLOCK, $^(NATIVE, $*)); }
           | simple_stmt_list                { $$ = $^(BLOCK, $*); }
           ; 

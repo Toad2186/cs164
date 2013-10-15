@@ -83,9 +83,9 @@ private:
         } else {
             // get rid of starting and ending quotes
             const char* s = as_chars();
-            int v;
             size_t i;
             i = 0;
+            int v;
             literal_text.clear ();
             while (i < text_size()) {
                 i += 1;
@@ -136,13 +136,44 @@ private:
 
     void print (ostream& out, int indent) {
         out << "(string_literal " << lineNumber () << " \"";
-        for (size_t i = 0; i < literal_text.size (); i += 1) {
-            char c = literal_text[i];
-            if (c < 32 || c == '\\' || c == '"') {
-                out << "\\" << oct << setw (3) << setfill('0') << (int) c
-                    << setfill (' ') << dec;
-            } else
+        if (literal_text[0] == 'r' || literal_text[0] == 'R')
+        {
+            for (size_t i = 2; i < literal_text.size() - 1; i += 1)
+            {
+                char c = literal_text[i];
                 out << c;
+            }
+        }
+        else
+        {
+            size_t orig_size;
+            orig_size = text_size();
+            size_t size;
+            size = 0;
+            size_t start;
+            start = 0;
+
+            char quote = literal_text[0];
+            if (orig_size >= 6 && quote == literal_text[1] && quote == literal_text[2] && quote == literal_text[orig_size-1] && quote == literal_text[orig_size-2] && quote == literal_text[orig_size-3])
+            {
+              start = 3;
+              size = orig_size - 3;
+            }
+            else
+            {
+              start = 1;
+              size = orig_size - 1;
+            }
+
+
+            for (size_t i = start; i < size; i += 1) {
+                char c = literal_text[i];
+                if (c < 32 || c == '\\' || c == '"') {
+                    out << "\\" << oct << setw (3) << setfill('0') << (int) c
+                        << setfill (' ') << dec;
+                } else
+                    out << c;
+            }
         }
         out << "\")";
     }
@@ -172,7 +203,7 @@ const String_Token String_Token::raw_factory (RAWSTRING);
 /*
  * Token Factories
 */
-TOKEN_FACTORY(String_Token, STRING_LITERAL);
+TOKEN_FACTORY(String_Token, STRING);
 TOKEN_FACTORY(Id_Token, ID);
 TOKEN_FACTORY(Int_Token, INT_LITERAL);
 
