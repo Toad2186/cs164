@@ -1,0 +1,2 @@
+class a(Object):
+    pass
