@@ -384,7 +384,7 @@ _ESCAPESEQ : _RAWESCAPESEQ | ( '\\' _OCTDIGIT _OCTDIGIT? _OCTDIGIT? ) ;
 /* Careful. Horn rules can only do set subtraction on its own lexical rule */
 _NO_SINGLEQUOTE : _ANY - ('\'' | '\n' ) ;
 _NO_DOUBLEQUOTE : _ANY - ('"' | '\n') ;
-_NO_SLASH : _ANY - ('\\' | '\n') ;
+_NO_SLASH : _ANY - '\\' ;
 
 _SHORTSTRINGITEM1 : _NO_SINGLEQUOTE | _ESCAPESEQ ;
 _SHORTSTRINGITEM2 : _NO_DOUBLEQUOTE | _ESCAPESEQ ;
@@ -411,12 +411,6 @@ _RAWLONGSTRING : "'''" ( _RAWLONGSTRINGITEM* ("'" | "''")? )* "'''"
 
 RAWSTRING : _RAWSTRINGPREFIX (_RAWSHORTSTRING | _RAWLONGSTRING) ;
 STRING : _SHORTSTRING | _LONGSTRING ;
-
-/* TODO: fix */
-/* Unsupported Keywords. Error */
-/* *: ( "as" | "assert" | "del" | "except" | "exec" | "finally" | "future" | "global"
- *   | "import" | "lambda" | "raise" | "try" | "with" | "yield" ) ;
- */
 
 _NO_NEWLINE : _ANY - '\n' ;
 _COMMENT : '#' _NO_NEWLINE* ;
